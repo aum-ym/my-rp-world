@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NexusRP — Private Roleplay Studio</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- โหลด Supabase JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- แถบซ้าย: รายชื่อตัวละคร & ตั้งค่าระบบ -->
+    <aside class="sidebar-left" id="sidebarLeft">
+      <div class="sidebar-header">
+        <h2>NexusRP</h2>
+        <button class="icon-btn mobile-only" onclick="toggleSidebar('left')">✕</button>
+      </div>
+
+      <div class="sidebar-actions">
+        <button class="btn primary full" onclick="openCharModal()">+ New Character</button>
+        <div class="btn-row">
+          <button class="btn secondary half" onclick="openPersonaModal()">👤 My Persona</button>
+          <button class="btn secondary half" onclick="openSettingsModal()">⚙️ API Keys</button>
+        </div>
+      </div>
+
+      <div class="section-label">CHARACTERS</div>
+      <div class="char-list" id="charList">
+        <div class="empty-hint">Loading characters...</div>
+      </div>
+    </aside>
+
+    <!-- ตรงกลาง: พื้นที่แชทโรลเพลย์ -->
+    <main class="chat-main">
+      <header class="chat-header">
+        <div class="header-left">
+          <button class="icon-btn mobile-only" onclick="toggleSidebar('left')">☰</button>
+          <img id="headerAvatar" src="https://via.placeholder.com/40/27272a/a1a1aa?text=?" alt="Avatar" class="avatar-sm" />
+          <div>
+            <h3 id="headerCharName">Select a Character</h3>
+            <span id="headerStatus" class="status-text">Ready</span>
+          </div>
+        </div>
+        <div class="header-right">
+          <button class="btn ghost sm" id="btnViewBio" onclick="openBioModal()" disabled>📄 Profile Card</button>
+          <button class="btn ghost sm" id="btnEditChar" onclick="openCharModal(true)" disabled>✏️ Edit</button>
+          <button class="icon-btn mobile-only" onclick="toggleSidebar('right')">🧠</button>
+        </div>
+      </header>
+
+      <div class="chat-messages" id="chatMessages">
+        <div class="welcome-screen">
+          <h1>Welcome to NexusRP</h1>
+          <p>1. กดปุ่ม <b>⚙️ API Keys</b> ด้านซ้ายเพื่อใส่ DeepSeek และ Supabase Key</p>
+          <p>2. กด <b>👤 My Persona</b> เพื่อสร้างประวัติตัวละครของคุณ (ไม่จำกัดตัวอักษร)</p>
+          <p>3. กด <b>+ New Character</b> เพื่อสร้างบอทและเริ่มโรลเพลย์ได้เลย</p>
+        </div>
+      </div>
+
+      <!-- พรีวิวรูปก่อนส่ง -->
+      <div id="imagePreviewBar" class="image-preview-bar hidden">
+        <img id="imagePreviewThumb" src="" alt="Preview" />
+        <span id="imagePreviewName">image.png</span>
+        <button class="icon-btn" onclick="clearSelectedImage()">✕</button>
+      </div>
+
+      <footer class="chat-input-area">
+        <input type="file" id="imageInput" accept="image/*" hidden onchange="handleImageSelect(event)" />
+        <button class="icon-btn attach-btn" id="btnAttach" onclick="document.getElementById('imageInput').click()" title="Attach Image" disabled>🖼️</button>
+        <textarea id="messageInput" rows="1" placeholder="Write your action or dialogue... (*action* &quot;speech&quot;)" disabled></textarea>
+        <button class="btn primary send-btn" id="btnSend" onclick="sendMessage()" disabled>Send</button>
+      </footer>
+    </main>
+
+    <!-- แถบขวา: สมองความจำ (Memory & Lore) -->
+    <aside class="sidebar-right" id="sidebarRight">
+      <div class="sidebar-header">
+        <h3>🧠 Memory & Context</h3>
+        <button class="icon-btn mobile-only" onclick="toggleSidebar('right')">✕</button>
+      </div>
+
+      <div class="memory-box">
+        <label>Pinned Memory / Current Plot</label>
+        <p class="hint">จดเหตุการณ์สำคัญ สถานที่ หรือความสัมพันธ์ไว้ตรงนี้ บอทจะจำได้ตลอดเวลา</p>
+        <textarea id="memoryInput" placeholder="e.g. We are hiding in an abandoned warehouse. It's raining outside..." disabled></textarea>
+        <button class="btn primary full sm" id="btnSaveMemory" onclick="saveMemory()" disabled>💾 Save Memory</button>
+      </div>
+
+      <div class="memory-box">
+        <label>Model Selection</label>
+        <select id="modelSelect">
+          <option value="deepseek-chat">DeepSeek V3 (Roleplay Pro)</option>
+          <option value="deepseek-reasoner">DeepSeek R1 (Deep Thinking)</option>
+        </select>
+        <p class="hint">*หมายเหตุ: หากแนบรูปภาพ ระบบจะส่งไปประมวลผลตามโหมดที่คุณเลือก</p>
+      </div>
+
+      <div class="memory-box danger-zone">
+        <button class="btn danger full sm" id="btnResetChat" onclick="resetCurrentChat()" disabled>🗑️ Reset Chat History</button>
+      </div>
+    </aside>
+  </div>
+
+  <!-- MODAL 1: ตั้งค่า API Keys -->
+  <div class="modal-backdrop hidden" id="settingsModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>⚙️ API & Cloud Sync Settings</h3>
+        <button class="icon-btn" onclick="closeModal('settingsModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <label>DeepSeek API Key (เก็บเฉพาะในเครื่องนี้)</label>
+        <input type="password" id="cfgDeepseekKey" placeholder="sk-..." />
+
+        <label>Supabase Project URL</label>
+        <input type="text" id="cfgSupabaseUrl" placeholder="https://xxxx.supabase.co" />
+
+        <label>Supabase Publishable / Anon Key</label>
+        <input type="password" id="cfgSupabaseKey" placeholder="sb_publishable_..." />
+      </div>
+      <div class="modal-footer">
+        <button class="btn secondary" onclick="closeModal('settingsModal')">Cancel</button>
+        <button class="btn primary" onclick="saveSettings()">Save & Connect</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: User Persona (ไม่จำกัดตัวอักษร) -->
+  <div class="modal-backdrop hidden" id="personaModal">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h3>👤 Your Persona (Unlimited Characters)</h3>
+        <button class="icon-btn" onclick="closeModal('personaModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <label>Your Character Name</label>
+        <input type="text" id="personaName" placeholder="e.g. Sil / Alex" />
+
+        <label>Detailed Background, Appearance & Traits <span id="personaCharCount" class="badge">0 chars</span></label>
+        <textarea id="personaDesc" rows="12" placeholder="ใส่ประวัติ ลักษณะนิสัย รูปร่างหน้าตา พลัง หรือความสัมพันธ์ได้เต็มที่ ไม่จำกัดความยาว..."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn secondary" onclick="closeModal('personaModal')">Cancel</button>
+        <button class="btn primary" onclick="savePersona()">Save to Cloud</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: สร้าง / แก้ไขตัวละคร AI -->
+  <div class="modal-backdrop hidden" id="charModal">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h3 id="charModalTitle">+ Create Character</h3>
+        <button class="icon-btn" onclick="closeModal('charModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editCharId" />
+        <div class="form-grid">
+          <div>
+            <label>Character Name *</label>
+            <input type="text" id="charName" placeholder="e.g. Kaelen" />
+          </div>
+          <div>
+            <label>Avatar Image URL</label>
+            <input type="text" id="charAvatar" placeholder="https://..." />
+          </div>
+        </div>
+
+        <label>Personality & Lore (นิสัย, ปูมหลัง, วิธีพูด - ภาษาอังกฤษจะดีที่สุด)</label>
+        <textarea id="charPersonality" rows="5" placeholder="Describe personality, speech style, backstory..."></textarea>
+
+        <label>Scenario (สถานการณ์เริ่มต้น)</label>
+        <textarea id="charScenario" rows="3" placeholder="Where are you both? What is happening right now?"></textarea>
+
+        <label>First Message (ประโยคเปิดฉากแรกของบอท) *</label>
+        <textarea id="charFirstMsg" rows="4" placeholder="*He leans against the doorframe, crossing his arms.* &quot;You're late.&quot;"></textarea>
+
+        <label>Custom HTML/CSS Profile Card (ลูกเล่นแบบ Rubii / Clank - ใส่โค้ดตกแต่งได้)</label>
+        <textarea id="charHtmlBio" rows="5" placeholder="<div style='padding:12px; background:#1e1e24; border-radius:8px;'><h3>Stats</h3><p>Age: 25 | Class: Assassin</p></div>"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn danger hidden" id="btnDeleteChar" onclick="deleteCharacter()">Delete</button>
+        <div style="flex:1"></div>
+        <button class="btn secondary" onclick="closeModal('charModal')">Cancel</button>
+        <button class="btn primary" onclick="saveCharacter()">Save Character</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 4: แสดงหน้า Profile HTML ของตัวละคร -->
+  <div class="modal-backdrop hidden" id="bioModal">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h3 id="bioModalTitle">Character Profile</h3>
+        <button class="icon-btn" onclick="closeModal('bioModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="bioRenderContainer" class="bio-render-box"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
