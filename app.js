@@ -490,6 +490,7 @@ function setupTextareaAutoResize() {
     this.style.height = (this.scrollHeight) + 'px';
   });
 }
+function openSettingsModal() { openModal('settingsModal'); }
 
 function escapeHtml(str) {
   if (!str) return '';
