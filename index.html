@@ -121,7 +121,7 @@
             <h3>Characters Hub</h3>
           </div>
           <div class="header-right">
-            <input type="text" id="hubSearchInput" placeholder="Search characters..." oninput="renderCharacterHub()" style="width: 200px;" />
+            <input type="text" id="hubSearchInput" placeholder="Search characters..." oninput="renderCharacterHub()" style="width: 170px;" />
             <button class="icon-btn mobile-only" onclick="toggleSidebar('right')"><i data-lucide="sliders-horizontal" class="icon-sm"></i></button>
           </div>
         </header>
@@ -133,26 +133,28 @@
       <!-- VIEW 2: หน้าแชทโรลเพลย์ (Active Chat) -->
       <section id="viewChat" class="workspace-view hidden">
         <header class="top-bar">
-          <div class="header-left">
+          <div class="header-left" style="min-width: 0; flex: 1;">
             <button class="icon-btn mobile-only" onclick="toggleSidebar('left')"><i data-lucide="menu" class="icon-sm"></i></button>
             <img id="headerAvatar" src="https://via.placeholder.com/36/1f1f24/71717a?text=?" alt="Avatar" class="avatar-sm" />
-            <div>
-              <h3 id="headerCharName">Character</h3>
+            <div style="min-width: 0; overflow: hidden;">
+              <h3 id="headerCharName" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Character</h3>
               <span id="headerStatus" class="status-text">Ready</span>
             </div>
           </div>
-          <div class="header-right">
-            <!-- ปุ่มเปิด Unified Phone Mode (รวมแชท + กดโทรต่อได้ในกล่องเดียว) -->
-            <button class="btn secondary sm" id="btnToggleUnifiedPhone" onclick="toggleUnifiedPhoneMode()" title="Open Unified Phone Session (Texting & Voice Call)">
-              <i data-lucide="smartphone" class="icon-xs"></i> <span id="unifiedPhoneToggleLabel">Phone Mode</span>
+          <div class="header-right" style="flex-shrink: 0;">
+            <!-- ปุ่มไอคอนล้วนบนแถบหัวแชท ไม่เบียดชื่อตัวละครตกบรรทัด -->
+            <button class="icon-btn" id="btnToggleUnifiedPhone" onclick="toggleUnifiedPhoneMode()" title="Unified Phone Mode (Texting & Voice Call)">
+              <i data-lucide="smartphone" class="icon-sm"></i>
             </button>
-            <button class="btn ghost sm" id="btnViewBio" onclick="openBioModal()">
-              <i data-lucide="file-text" class="icon-xs"></i> <span class="hide-sm">Profile</span>
+            <button class="icon-btn" id="btnViewBio" onclick="openBioModal()" title="Character Profile Card">
+              <i data-lucide="file-text" class="icon-sm"></i>
             </button>
-            <button class="btn ghost sm" id="btnEditChar" onclick="openCharModal(true)">
-              <i data-lucide="sliders" class="icon-xs"></i> <span class="hide-sm">Config</span>
+            <button class="icon-btn" id="btnEditChar" onclick="openCharModal(true)" title="Character Config">
+              <i data-lucide="sliders" class="icon-sm"></i>
             </button>
-            <button class="icon-btn mobile-only" onclick="toggleSidebar('right')"><i data-lucide="panel-right" class="icon-sm"></i></button>
+            <button class="icon-btn mobile-only" onclick="toggleSidebar('right')" title="Chat Details">
+              <i data-lucide="panel-right" class="icon-sm"></i>
+            </button>
           </div>
         </header>
 
@@ -160,13 +162,13 @@
         <div id="unifiedPhoneBanner" class="phone-mode-banner hidden">
           <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;" id="unifiedPhoneStatusText">
             <i data-lucide="smartphone" class="icon-xs" style="color:var(--accent);"></i>
-            <span><b>Phone Texting</b> — พิมพ์แชทหรือแทรก <code>*บรรยาย*</code> รัวๆ แล้วกด <b>Ask Reply</b></span>
+            <span><b>Phone Texting</b> — พิมพ์แชทหรือ <code>*บรรยาย*</code> แล้วกด <b>Reply</b></span>
           </div>
-          <div style="display:flex; align-items:center; gap:6px;">
+          <div style="display:flex; align-items:center; gap:6px; flex-shrink: 0;">
             <button class="btn secondary sm" id="btnSwitchCallSubMode" onclick="toggleCallSubMode()">
-              <i data-lucide="phone" class="icon-xs" style="color:#34d399;"></i> <span id="callSubModeLabel">Call Now</span>
+              <i data-lucide="phone" class="icon-xs" style="color:#34d399;"></i> <span id="callSubModeLabel">Call</span>
             </button>
-            <button class="btn ghost sm" onclick="toggleUnifiedPhoneMode(false)">End & Collapse</button>
+            <button class="btn ghost sm" onclick="toggleUnifiedPhoneMode(false)">End</button>
           </div>
         </div>
 
@@ -191,7 +193,7 @@
 
         <footer class="chat-input-wrapper">
           <div class="chat-input-box" style="position: relative;">
-            <!-- เมนูป๊อปอัปซ่อนปุ่มโทรศัพท์ + แทรกฉาก NPC ใต้ปุ่ม 3 ขีด -->
+            <!-- เมนูป๊อปอัป 1: โทรศัพท์ + แทรกฉาก NPC -->
             <div id="deviceMenuPopover" class="device-popover hidden">
               <button class="popover-item" onclick="toggleDeviceMenu(); openUserPhoneModal();">
                 <i data-lucide="smartphone" class="icon-sm" style="color: var(--accent);"></i>
@@ -217,9 +219,20 @@
               </button>
             </div>
 
-            <textarea id="messageInput" rows="1" placeholder="Type action (*text*), dialogue, or (OOC: time skip / scene note)..."></textarea>
+            <!-- เมนูป๊อปอัป 2: เลือกรูปแบบการตอบ (Response Style) + ปุ่มจัดการอยู่ข้างใน -->
+            <div id="styleMenuPopover" class="device-popover hidden" style="left: 76px; width: 220px;">
+              <div class="section-label" style="padding: 4px 10px;">RESPONSE STYLE</div>
+              <div id="stylePopoverList" style="display:flex; flex-direction:column; gap:2px; max-height: 200px; overflow-y: auto;"></div>
+              <hr class="divider" style="margin:2px 0;" />
+              <button class="popover-item" onclick="closeStylePopover(); openStyleManager();">
+                <i data-lucide="settings-2" class="icon-xs" style="color: var(--accent);"></i>
+                <span style="font-weight:600; font-size:12.5px;">Manage / Edit Styles</span>
+              </button>
+            </div>
+
+            <textarea id="messageInput" rows="1" placeholder="Type action (*text*), dialogue, or (OOC: ...)..."></textarea>
             <div class="chat-toolbar">
-              <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+              <div style="display:flex; align-items:center; gap:6px;">
                 <button class="icon-btn" id="btnDeviceMenu" onclick="toggleDeviceMenu()" title="Devices & Scene Tools">
                   <i data-lucide="menu" class="icon-xs"></i>
                 </button>
@@ -229,20 +242,21 @@
                   <i data-lucide="image" class="icon-xs"></i>
                 </button>
 
-                <select id="responseStyleSelect" class="toolbar-select" title="Response Style"></select>
-                <button class="icon-btn" onclick="openStyleManager()" title="Customize Response Styles">
-                  <i data-lucide="settings-2" class="icon-xs"></i>
+                <!-- ปุ่มเลือกรูปแบบการตอบแบบกระชับ กดแล้วเปิดเมนูข้างใน -->
+                <button class="btn secondary sm" id="btnStyleMenu" onclick="toggleStylePopover()" title="Select Response Style" style="padding: 6px 9px;">
+                  <i data-lucide="wand-2" class="icon-xs" style="color: var(--accent);"></i>
+                  <span id="activeStyleBadgeText" style="font-size: 11.5px;">Balanced</span>
                 </button>
               </div>
 
               <div style="display:flex; align-items:center; gap:6px;">
                 <!-- ปุ่มเรียกบอทมาตอบเอง (โชว์เฉพาะตอนอยู่ในช่วง Texting ของ Phone Mode) -->
                 <button class="btn primary sm hidden" id="btnTriggerPhoneReply" onclick="triggerPhoneChatBotReply()" title="Call character to reply now">
-                  <i data-lucide="bot" class="icon-xs"></i> <span>Ask Reply</span>
+                  <i data-lucide="bot" class="icon-xs"></i> <span>Reply</span>
                 </button>
 
-                <button class="btn secondary sm" id="btnContinue" onclick="continueBotMessage()" title="Continue generating">
-                  <i data-lucide="chevrons-right" class="icon-xs"></i> <span class="hide-sm">Continue</span>
+                <button class="icon-btn" id="btnContinue" onclick="continueBotMessage()" title="Continue generating">
+                  <i data-lucide="chevrons-right" class="icon-xs"></i>
                 </button>
                 <button class="btn primary sm" id="btnSend" onclick="sendMessage()">
                   <span id="btnSendLabel">Send</span> <i data-lucide="arrow-up" class="icon-xs"></i>

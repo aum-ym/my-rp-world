@@ -11,6 +11,7 @@ let currentChat = null;
 let currentMessages = [];
 let selectedImageFile = null;
 let activeDirectionMode = null;
+let activeStyleId = 'default';
 
 // Unified Phone Mode State (รวม Texting + Call ในเซสชันเดียวกัน)
 let isUnifiedPhoneMode = false;
@@ -164,10 +165,16 @@ window.addEventListener('DOMContentLoaded', async () => {
   });
 
   document.addEventListener('click', (e) => {
-    const popover = document.getElementById('deviceMenuPopover');
-    const btn = document.getElementById('btnDeviceMenu');
-    if (popover && !popover.classList.contains('hidden') && !popover.contains(e.target) && !btn.contains(e.target)) {
-      popover.classList.add('hidden');
+    const devicePop = document.getElementById('deviceMenuPopover');
+    const deviceBtn = document.getElementById('btnDeviceMenu');
+    if (devicePop && !devicePop.classList.contains('hidden') && !devicePop.contains(e.target) && !deviceBtn.contains(e.target)) {
+      devicePop.classList.add('hidden');
+    }
+
+    const stylePop = document.getElementById('styleMenuPopover');
+    const styleBtn = document.getElementById('btnStyleMenu');
+    if (stylePop && !stylePop.classList.contains('hidden') && !stylePop.contains(e.target) && !styleBtn.contains(e.target)) {
+      stylePop.classList.add('hidden');
     }
   });
 
@@ -229,7 +236,7 @@ async function onLoginSuccess(user) {
   refreshIcons();
 
   await loadUserProfile();
-  renderStyleDropdown();
+  renderStylePopover();
   await loadPersonas();
   await loadUserStickers();
   await loadCharacters();
@@ -242,7 +249,7 @@ async function handleLogout() {
   location.reload();
 }
 
-// --- VIEW NAVIGATION & LIGHTBOX ---
+// --- VIEW NAVIGATION & POPOVERS ---
 function switchMainView(viewName) {
   ['viewHub', 'viewChat'].forEach(id => document.getElementById(id).classList.add('hidden'));
   document.getElementById('navHub').classList.remove('active');
@@ -266,12 +273,51 @@ function openLightbox(url) {
 }
 
 function toggleDeviceMenu() {
+  closeStylePopover();
   const menu = document.getElementById('deviceMenuPopover');
   menu.classList.toggle('hidden');
   if (currentChar) {
     document.getElementById('menuCharPhoneLabel').textContent = `${currentChar.name}'s Phone`;
   }
   refreshIcons();
+}
+
+function toggleStylePopover() {
+  document.getElementById('deviceMenuPopover')?.classList.add('hidden');
+  const pop = document.getElementById('styleMenuPopover');
+  pop.classList.toggle('hidden');
+  renderStylePopover();
+  refreshIcons();
+}
+
+function closeStylePopover() {
+  document.getElementById('styleMenuPopover')?.classList.add('hidden');
+}
+
+function selectResponseStyle(styleId) {
+  activeStyleId = styleId;
+  renderStylePopover();
+  closeStylePopover();
+}
+
+function renderStylePopover() {
+  const listEl = document.getElementById('stylePopoverList');
+  const badgeEl = document.getElementById('activeStyleBadgeText');
+  if (!customStyles.some(s => s.id === activeStyleId)) {
+    activeStyleId = customStyles[0]?.id || 'default';
+  }
+  const activeObj = customStyles.find(s => s.id === activeStyleId) || { name: 'Balanced' };
+  if (badgeEl) {
+    badgeEl.textContent = activeObj.name.split(' ')[0];
+  }
+  if (listEl) {
+    listEl.innerHTML = customStyles.map(s => `
+      <button class="popover-item ${s.id === activeStyleId ? 'active-style' : ''}" onclick="selectResponseStyle('${s.id}')">
+        <i data-lucide="${s.id === activeStyleId ? 'check' : 'sparkles'}" class="icon-xs"></i>
+        <span>${escapeHtml(s.name)}</span>
+      </button>
+    `).join('');
+  }
 }
 
 // --- API KEY, BALANCE & CUSTOM STYLES ---
@@ -350,13 +396,6 @@ async function fetchDeepSeekBalance() {
   }
 }
 
-function renderStyleDropdown() {
-  const select = document.getElementById('responseStyleSelect');
-  const currentVal = select.value;
-  select.innerHTML = customStyles.map(s => `<option value="${s.id}">Style: ${escapeHtml(s.name)}</option>`).join('');
-  if (customStyles.some(s => s.id === currentVal)) select.value = currentVal;
-}
-
 function openStyleManager() {
   renderStyleEditorList();
   openModal('styleManagerModal');
@@ -416,7 +455,7 @@ async function saveCustomStyles() {
     });
 
   if (error) return showToast('บันทึกไม่สำเร็จ: ' + error.message);
-  renderStyleDropdown();
+  renderStylePopover();
   closeModal('styleManagerModal');
   showToast('บันทึกรูปแบบการตอบเรียบร้อย');
 }
@@ -753,7 +792,6 @@ async function createNewChatSession() {
   await openSpecificChat(newChat.id);
 }
 
-// แยก Branch แชท (คัดลอกตั้งแต่ข้อความแรกจนถึง upToMsgId — ถ้าไม่ส่ง upToMsgId คือคัดลอกทั้งห้อง)
 async function branchChatFromMessage(upToMsgId = null) {
   if (!currentChat || !currentChar) return;
   const defaultTitle = `${currentChat.title} (Branch)`;
@@ -853,7 +891,7 @@ async function openSpecificChat(chatId) {
     currentMessages = msgs;
   }
 
-  renderMessages(false);
+  renderMessages(false, true);
 }
 
 async function renameChatById(chatId) {
@@ -941,7 +979,7 @@ async function selectChatPersona(personaId) {
   currentChat.persona_id = val;
   updateActivePersonaCard();
   closeModal('personaPickerModal');
-  renderMessages(false);
+  renderMessages(false, false);
   showToast('เปลี่ยน Persona ประจำห้องแล้ว');
 }
 
@@ -1071,7 +1109,7 @@ async function savePersona() {
 
   await loadPersonas();
   renderPersonaLibraryList();
-  if (currentMessages.length > 0) renderMessages(false);
+  if (currentMessages.length > 0) renderMessages(false, false);
   showToast('บันทึก Persona และตัวละครเสริมฝั่งเราเรียบร้อย');
 }
 
@@ -1091,7 +1129,6 @@ function toggleUnifiedPhoneMode(forceState = null) {
   isUnifiedPhoneMode = forceState !== null ? forceState : !isUnifiedPhoneMode;
   const banner = document.getElementById('unifiedPhoneBanner');
   const toggleBtn = document.getElementById('btnToggleUnifiedPhone');
-  const toggleLabel = document.getElementById('unifiedPhoneToggleLabel');
   const continueBtn = document.getElementById('btnContinue');
 
   if (isUnifiedPhoneMode) {
@@ -1099,9 +1136,7 @@ function toggleUnifiedPhoneMode(forceState = null) {
     expandedPhoneSessions.add(activeUnifiedSessionId);
     isCallSubMode = false;
     banner.classList.remove('hidden');
-    toggleBtn.classList.remove('secondary');
-    toggleBtn.classList.add('primary');
-    toggleLabel.textContent = 'End Phone';
+    toggleBtn.classList.add('active-mode');
     continueBtn.classList.add('hidden');
     updateUnifiedPhoneBannerUI();
   } else {
@@ -1112,14 +1147,12 @@ function toggleUnifiedPhoneMode(forceState = null) {
       activeUnifiedSessionId = null;
     }
     banner.classList.add('hidden');
-    toggleBtn.classList.remove('primary');
-    toggleBtn.classList.add('secondary');
-    toggleLabel.textContent = 'Phone Mode';
+    toggleBtn.classList.remove('active-mode');
     document.getElementById('btnTriggerPhoneReply').classList.add('hidden');
     continueBtn.classList.remove('hidden');
-    document.getElementById('messageInput').placeholder = 'Type action (*text*), dialogue, or (OOC: time skip / scene note)...';
+    document.getElementById('messageInput').placeholder = 'Type action (*text*), dialogue, or (OOC: ...)...';
   }
-  renderMessages(false);
+  renderMessages(false, isUnifiedPhoneMode);
   refreshIcons();
 }
 
@@ -1155,34 +1188,35 @@ function updateUnifiedPhoneBannerUI() {
 
   if (isCallSubMode) {
     banner.classList.add('calling-active');
-    statusText.innerHTML = `<span class="call-live-dot"></span> <b>On Voice Call</b> • <span id="callTimerDisplay" style="font-family:monospace; font-weight:700;">00:00</span> (พูดคุยสดสั้นๆ 1–3 ประโยค)`;
+    statusText.innerHTML = `<span class="call-live-dot"></span> <b>On Call</b> • <span id="callTimerDisplay" style="font-family:monospace; font-weight:700;">00:00</span>`;
     subBtn.className = 'btn danger sm';
     subBtn.innerHTML = `<i data-lucide="phone-off" class="icon-xs"></i> <span>Hang Up</span>`;
     askReplyBtn.classList.add('hidden');
-    inputEl.placeholder = 'พูดคุยผ่านสายโทรศัพท์ (กด Enter เพื่อพูดโต้ตอบสด)...';
+    inputEl.placeholder = 'พูดคุยผ่านสายโทรศัพท์ (กด Send เพื่อพูดโต้ตอบสด)...';
   } else {
     banner.classList.remove('calling-active');
-    statusText.innerHTML = `<i data-lucide="smartphone" class="icon-xs" style="color:var(--accent);"></i> <span><b>Phone Texting</b> — พิมพ์แชทหรือแทรก <code>*บรรยาย*</code> รัวๆ แล้วกด <b>Ask Reply</b></span>`;
+    statusText.innerHTML = `<i data-lucide="smartphone" class="icon-xs" style="color:var(--accent);"></i> <span><b>Phone Texting</b> — พิมพ์รัวๆ แล้วกด <b>Reply</b></span>`;
     subBtn.className = 'btn secondary sm';
-    subBtn.innerHTML = `<i data-lucide="phone" class="icon-xs" style="color:#34d399;"></i> <span>Call Now</span>`;
+    subBtn.innerHTML = `<i data-lucide="phone" class="icon-xs" style="color:#34d399;"></i> <span>Call</span>`;
     askReplyBtn.classList.remove('hidden');
-    inputEl.placeholder = 'พิมพ์แชท หรือพิมพ์ *บรรยายท่าทาง* แล้วกด Ask Reply เมื่อพิมพ์เสร็จ...';
+    inputEl.placeholder = 'พิมพ์แชท หรือ *บรรยาย* แล้วกด Reply เมื่อพิมพ์เสร็จ...';
   }
 }
 
+// เปิด/ปิดการ์ดประวัติแชทโทรศัพท์ โดยไม่เลื่อนจอหนีลงล่างสุด (autoScroll = false)
 function togglePhoneSessionCard(sessionId) {
   if (expandedPhoneSessions.has(sessionId)) {
     expandedPhoneSessions.delete(sessionId);
   } else {
     expandedPhoneSessions.add(sessionId);
   }
-  renderMessages(false);
+  renderMessages(false, false);
 }
 
 async function triggerPhoneChatBotReply() {
   if (!isUnifiedPhoneMode || isCallSubMode || !deepseekApiKey) return showToast('กรุณาใส่ DeepSeek API Key ก่อน');
   setLoading(true);
-  renderMessages(true);
+  renderMessages(true, true);
 
   try {
     const phoneRule = `[HYBRID SMARTPHONE TEXTING MODE ACTIVE — OVERRIDE LONG NARRATION FORMAT]
@@ -1211,7 +1245,7 @@ You are texting ${getActivePersona().name} via smartphone messaging app (NOT fac
       }).select().single();
 
       currentMessages.push(botMsg);
-      renderMessages(i < bubbles.length - 1);
+      renderMessages(i < bubbles.length - 1, true);
       if (i < bubbles.length - 1) {
         await new Promise(r => setTimeout(r, 550));
       }
@@ -1221,7 +1255,7 @@ You are texting ${getActivePersona().name} via smartphone messaging app (NOT fac
     loadAllRecentChats();
     fetchDeepSeekBalance();
   } catch (err) {
-    renderMessages(false);
+    renderMessages(false, false);
     showToast('Reply failed: ' + err.message);
   } finally {
     setLoading(false);
@@ -1269,7 +1303,7 @@ async function deletePhotoFromAlbum(msgId, imageUrl) {
 
   showToast('ลบรูปภาพเรียบร้อย');
   openPhotoAlbumModal();
-  renderMessages(false);
+  renderMessages(false, false);
 }
 
 function openChatFavoritesModal() {
@@ -1581,7 +1615,7 @@ async function sendRawUserAction(specialContent) {
 
     if (error) return showToast(error.message);
     currentMessages.push(userMsg);
-    renderMessages(false);
+    renderMessages(false, true);
     return;
   }
 
@@ -1597,7 +1631,7 @@ async function sendRawUserAction(specialContent) {
 
     if (error) throw error;
     currentMessages.push(userMsg);
-    renderMessages(true);
+    renderMessages(true, true);
 
     const rawBotText = await requestDeepSeekCompletion(currentMessages);
     const botText = stripLegacyHudTag(rawBotText);
@@ -1615,11 +1649,11 @@ async function sendRawUserAction(specialContent) {
 
     await supabaseClient.from('chats').update({ updated_at: new Date().toISOString() }).eq('id', currentChat.id);
     currentMessages.push(botMsg);
-    renderMessages(false);
+    renderMessages(false, true);
     loadAllRecentChats();
     fetchDeepSeekBalance();
   } catch (err) {
-    renderMessages(false);
+    renderMessages(false, false);
     showToast('Error: ' + err.message);
   } finally {
     setLoading(false);
@@ -1679,7 +1713,7 @@ function stripLegacyHudTag(text) {
 }
 
 // ==========================================
-// CHAT RENDERING (RP + UNIFIED PHONE SESSION + BRANCH BUTTON)
+// CHAT RENDERING (PRESERVES SCROLL ON EXPAND/EDIT/SWIPE)
 // ==========================================
 function resolveStickerUrl(label) {
   const cleanLabel = label.trim().toLowerCase();
@@ -1690,9 +1724,11 @@ function resolveStickerUrl(label) {
   return null;
 }
 
-function renderMessages(isTyping = false) {
+function renderMessages(isTyping = false, autoScroll = true) {
   updateRightSidebarCounts();
   const container = document.getElementById('chatMessages');
+  const prevScrollTop = container.scrollTop;
+
   const activePersona = getActivePersona();
   const userAvatar = activePersona.avatar_url || 'https://via.placeholder.com/24/1f1f24/71717a?text=' + encodeURIComponent(activePersona.name[0]);
   const charAvatar = currentChar.avatar_url || 'https://via.placeholder.com/24/1f1f24/71717a?text=' + encodeURIComponent(currentChar.name[0]);
@@ -1789,7 +1825,7 @@ function renderMessages(isTyping = false) {
     if (isUser) {
       const parsedOoc = parseOocFromInput(m.content);
       if (parsedOoc.oocDirective) {
-        oocBadgeHtml = `<div class="ooc-directive-pill">🎬 OOC Note (Not stored in memory): ${escapeHtml(parsedOoc.oocDirective)}</div>`;
+        oocBadgeHtml = `<div class="ooc-directive-pill" ${!parsedOoc.cleanRoleplay ? 'style="margin-bottom:0;"' : ''}>🎬 OOC: ${escapeHtml(parsedOoc.oocDirective)}</div>`;
         displayContent = parsedOoc.cleanRoleplay;
       }
     }
@@ -1809,7 +1845,8 @@ function renderMessages(isTyping = false) {
     ` : '';
 
     const isPureSticker = /^\[(USER_)?STICKER:[^\]]+\]$/i.test(displayContent.trim());
-    const bubbleStyle = isPureSticker ? 'style="background:transparent; padding:0;"' : '';
+    const isPureOoc = isUser && oocBadgeHtml && !displayContent && !imgHtml;
+    const bubbleStyle = (isPureSticker || isPureOoc) ? 'style="background:transparent; padding:0;"' : '';
 
     return `
       <div class="msg-wrapper ${m.role}" data-msg-id="${m.id}">
@@ -1818,8 +1855,11 @@ function renderMessages(isTyping = false) {
           <span class="msg-sender">${escapeHtml(senderName)}</span>
           ${isUser ? `<img src="${avatarSrc}" class="msg-avatar" />` : ''}
         </div>
-        ${oocBadgeHtml}
-        ${(displayContent || imgHtml) ? `<div class="msg-bubble" ${bubbleStyle}>${imgHtml}${formattedText}</div>` : ''}
+        <div class="msg-bubble" ${bubbleStyle}>
+          ${oocBadgeHtml}
+          ${imgHtml}
+          ${formattedText}
+        </div>
         <div class="msg-actions-bar">
           <div class="msg-actions-group">
             <button class="msg-action-btn ${favClass}" onclick="toggleFavoriteMessage('${m.id}')" title="Favorite">
@@ -1871,7 +1911,12 @@ function renderMessages(isTyping = false) {
 
   container.innerHTML = html;
   refreshIcons();
-  container.scrollTop = container.scrollHeight;
+
+  if (autoScroll) {
+    container.scrollTop = container.scrollHeight;
+  } else {
+    container.scrollTop = prevScrollTop;
+  }
 }
 
 function formatRichContent(text, senderName = '') {
@@ -1921,7 +1966,7 @@ async function toggleFavoriteMessage(msgId) {
   if (error) return showToast(error.message);
 
   msg.is_favorite = newState;
-  renderMessages(false);
+  renderMessages(false, false);
 }
 
 // ==========================================
@@ -1971,7 +2016,7 @@ async function triggerNpcCameoScene(cameoInstruction) {
   if (!deepseekApiKey) return showToast('กรุณาใส่ DeepSeek API Key ก่อน');
   await prunePreviousBotSwipes();
   setLoading(true);
-  renderMessages(true);
+  renderMessages(true, true);
 
   try {
     const npcRule = `[SCENE DIRECTOR — SUPPORTING CHARACTER CAMEO]
@@ -1993,10 +2038,10 @@ Write the supporting character's dialogue and actions vividly alongside ${curren
     }).select().single();
 
     currentMessages.push(botMsg);
-    renderMessages(false);
+    renderMessages(false, true);
     fetchDeepSeekBalance();
   } catch (err) {
-    renderMessages(false);
+    renderMessages(false, false);
     showToast('Cameo failed: ' + err.message);
   } finally {
     setLoading(false);
@@ -2009,7 +2054,7 @@ async function continueBotMessage(directionInstruction = '') {
   if (!deepseekApiKey) return showToast('กรุณาใส่ DeepSeek API Key ก่อน');
 
   setLoading(true);
-  renderMessages(true);
+  renderMessages(true, true);
 
   try {
     const extraRule = directionInstruction
@@ -2028,10 +2073,10 @@ async function continueBotMessage(directionInstruction = '') {
     lastMsg.content = combinedText;
     lastMsg.swipes = swipes;
 
-    renderMessages(false);
+    renderMessages(false, true);
     fetchDeepSeekBalance();
   } catch (err) {
-    renderMessages(false);
+    renderMessages(false, false);
     showToast('Continue failed: ' + err.message);
   } finally {
     setLoading(false);
@@ -2045,7 +2090,7 @@ async function regenerateLast(directionInstruction = '') {
 
   setLoading(true);
   const historyBeforeLast = currentMessages.slice(0, -1);
-  renderMessages(true);
+  renderMessages(true, true);
 
   try {
     const extraRule = directionInstruction
@@ -2070,10 +2115,10 @@ async function regenerateLast(directionInstruction = '') {
     lastMsg.swipes = swipes;
     lastMsg.swipe_index = newIndex;
 
-    renderMessages(false);
+    renderMessages(false, true);
     fetchDeepSeekBalance();
   } catch (err) {
-    renderMessages(false);
+    renderMessages(false, false);
     showToast('Regenerate failed: ' + err.message);
   } finally {
     setLoading(false);
@@ -2095,11 +2140,11 @@ async function switchSwipe(msgId, delta) {
 
   msg.content = selectedContent;
   msg.swipe_index = newIdx;
-  renderMessages(false);
+  renderMessages(false, false);
 }
 
 // ==========================================
-// SEND MESSAGE & CORE API CALL (PRUNE SWIPES + OOC)
+// SEND MESSAGE & CORE API CALL (OOC RECAP + SCENE DIRECTION)
 // ==========================================
 function handleImageSelect(event) {
   const file = event.target.files[0];
@@ -2141,7 +2186,9 @@ async function sendMessage() {
 
   const { oocDirective } = parseOocFromInput(rawText);
   const oocSystemRule = oocDirective
-    ? `[TEMPORARY OOC DIRECTOR NOTE — EXECUTE THIS SCENE DIRECTION IMMEDIATELY, DO NOT MENTION OOC IN DIALOGUE]: ${oocDirective}`
+    ? `[OOC DIRECTIVE FROM USER]: "${oocDirective}"
+- If this OOC is a scene direction or time skip, execute it seamlessly in the story narration without breaking character.
+- If this OOC is a question asking for a recap, status check, or behind-the-scenes clarification, answer the user's OOC question directly and helpfully inside an [OOC: ...] block!`
     : '';
 
   // 1. กรณีอยู่ใน Unified Phone Mode -> ช่วง Texting
@@ -2165,7 +2212,7 @@ async function sendMessage() {
 
       if (error) throw error;
       currentMessages.push(userMsg);
-      renderMessages(false);
+      renderMessages(false, true);
     } catch (err) {
       showToast('ส่งไม่สำเร็จ: ' + err.message);
     }
@@ -2187,7 +2234,7 @@ async function sendMessage() {
 
       if (error) throw error;
       currentMessages.push(userMsg);
-      renderMessages(true);
+      renderMessages(true, true);
 
       const callRule = `[LIVE VOICE CALL ACTIVE — STRICTLY CONCISE SPOKEN DIALOGUE ONLY]
 You just picked up a live voice call from ${getActivePersona().name} right after your text messages (Duration: ${document.getElementById('callTimerDisplay').textContent}).
@@ -2212,11 +2259,11 @@ ${oocSystemRule}`;
 
       await supabaseClient.from('chats').update({ updated_at: new Date().toISOString() }).eq('id', currentChat.id);
       currentMessages.push(botMsg);
-      renderMessages(false);
+      renderMessages(false, true);
       loadAllRecentChats();
       fetchDeepSeekBalance();
     } catch (err) {
-      renderMessages(false);
+      renderMessages(false, false);
       showToast('Call error: ' + err.message);
     } finally {
       setLoading(false);
@@ -2245,7 +2292,7 @@ ${oocSystemRule}`;
 
     if (error) throw error;
     currentMessages.push(userMsg);
-    renderMessages(true);
+    renderMessages(true, true);
 
     const rawBotText = await requestDeepSeekCompletion(currentMessages, oocSystemRule);
     const botText = stripLegacyHudTag(rawBotText);
@@ -2264,12 +2311,12 @@ ${oocSystemRule}`;
     await supabaseClient.from('chats').update({ updated_at: new Date().toISOString() }).eq('id', currentChat.id);
 
     currentMessages.push(botMsg);
-    renderMessages(false);
+    renderMessages(false, true);
     loadAllRecentChats();
     fetchDeepSeekBalance();
   } catch (err) {
     console.error(err);
-    renderMessages(false);
+    renderMessages(false, false);
     showToast('เกิดข้อผิดพลาด: ' + err.message);
   } finally {
     setLoading(false);
@@ -2280,8 +2327,7 @@ async function requestDeepSeekCompletion(messageHistory, extraSystemRule = '') {
   document.getElementById('headerStatus').textContent = 'Typing...';
   const model = document.getElementById('modelSelect').value;
   const useRubiiHtml = document.getElementById('enableRubiiHtml').checked;
-  const styleId = document.getElementById('responseStyleSelect').value;
-  const activeStyle = customStyles.find(s => s.id === styleId);
+  const activeStyle = customStyles.find(s => s.id === activeStyleId);
   const activePersona = getActivePersona();
 
   const allStickerNames = [
@@ -2405,6 +2451,7 @@ function editMessage(msgId) {
   const bubble = wrapper.querySelector('.msg-bubble');
   const actions = wrapper.querySelector('.msg-actions-bar');
   if (actions) actions.classList.add('hidden');
+  if (!bubble) return;
 
   bubble.outerHTML = `
     <div class="edit-container">
@@ -2414,7 +2461,7 @@ function editMessage(msgId) {
         <button class="btn primary sm" onclick="saveEditedMessage('${msgId}')">
           <i data-lucide="check-circle" class="icon-xs"></i> Approve
         </button>
-        <button class="btn secondary sm" onclick="renderMessages(false)">
+        <button class="btn secondary sm" onclick="renderMessages(false, false)">
           <i data-lucide="x-circle" class="icon-xs"></i> Cancel
         </button>
       </div>
@@ -2444,7 +2491,7 @@ async function saveEditedMessage(msgId) {
 
   msg.content = newText;
   msg.swipes = swipes;
-  renderMessages(false);
+  renderMessages(false, false);
   showToast('แก้ไขข้อความแล้ว');
 }
 
@@ -2466,7 +2513,7 @@ async function deleteMessage(msgId) {
   if (error) return showToast('ลบไม่สำเร็จ: ' + error.message);
 
   currentMessages = currentMessages.slice(0, targetIdx);
-  renderMessages(false);
+  renderMessages(false, false);
   showToast(`ลบถาวรเรียบร้อย (${count} ข้อความ)`);
 }
 
@@ -2762,20 +2809,18 @@ function renderPhoneHome() {
   refreshIcons();
 }
 
-// ดึงภาพถ่ายจริงจาก LoremFlickr (ไม่ติดบล็อก Hotlink/Referer) + Picsum Fallback สำรองขึ้น 100%
 function resolveGalleryPhotoUrl(photoObj, forceAi = false) {
   if (forceAi) {
     const promptText = encodeURIComponent((photoObj.visual_desc || photoObj.search_keyword || 'candid photo') + ', realistic 35mm');
-    return `https://image.pollinations.ai/prompt/${promptText}?width=600&height=400&nologo=true`;
+    return `[https://image.pollinations.ai/prompt/$](https://image.pollinations.ai/prompt/$){promptText}?width=600&height=400&nologo=true`;
   }
 
-  // ใช้เฉพาะ URL ของ picsum.photos ที่เสถียรเท่านั้น (ล้างค่าแคชเก่าที่เสียทิ้งอัตโนมัติ)
   if (photoObj.cached_real_url && photoObj.cached_real_url.includes('picsum.photos')) {
     return photoObj.cached_real_url;
   }
 
   const seed = encodeURIComponent((photoObj.search_keyword || photoObj.caption || 'photo').trim().toLowerCase());
-  const reliablePhotoUrl = `https://picsum.photos/seed/${seed}/600/400`;
+  const reliablePhotoUrl = `[https://picsum.photos/seed/$](https://picsum.photos/seed/$){seed}/600/400`;
   photoObj.cached_real_url = reliablePhotoUrl;
   return reliablePhotoUrl;
 }
@@ -2842,7 +2887,7 @@ function openPhoneApp(appName) {
       const oldUrl = p.cached_real_url || '';
       const imgUrl = resolveGalleryPhotoUrl(p, galleryUseAiMode);
       if (oldUrl !== p.cached_real_url) updatedCache = true;
-      const fallbackUrl = `https://picsum.photos/seed/fallback_${idx}_${Date.now()}/600/400`;
+      const fallbackUrl = `[https://picsum.photos/seed/fallback_$](https://picsum.photos/seed/fallback_$){idx}_${Date.now()}/600/400`;
 
       return `
         <div class="gallery-memory-card">
