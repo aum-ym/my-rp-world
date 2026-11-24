@@ -445,7 +445,7 @@ ${activePersona.description || 'Not specified.'}
 </world_context>`;
 
   const locsXml = c.locations.length > 0
-    ? `\n<active_locations_pool count="${c.locations.length}">\n${c.locations.map(l => `### ${l.name} [${l.always_active ? 'ALWAYS ACTIVE' : `Keywords: ${l.keywords || 'Any'}`}]\n- Vibe: ${l.details || 'Standard'}\n- STRICT RULES: ${l.rules || 'None'}`).join('\n\n')}\n</active_locations_pool>`
+    ? `\n<active_locations_pool count="${c.locations.length}">\n${c.locations.map(l => `### ${l.name} [${l.always_active ? 'ALWAYS ACTIVE' : `Keywords: ${l.keywords || 'Any'}`}]\n#### Vibe & Atmosphere\n${l.details || 'Standard'}\n\n#### Strict Rules\n${l.rules || 'None'}`).join('\n\n')}\n</active_locations_pool>`
     : '';
 
   const loreXml = c.supporting_chars.length > 0

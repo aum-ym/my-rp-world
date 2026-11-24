@@ -1024,7 +1024,7 @@ ${activePersona.description || 'Not specified.'}
   const allLocs = Array.isArray(currentChar.locations) ? currentChar.locations : [];
   const triggeredLocs = allLocs.filter(l => matchesLoreKeywords(l, recentScanBlob));
   const activeLocationsXml = triggeredLocs.length > 0
-    ? `\n<active_locations>\n${triggeredLocs.map(l => `### ${l.name}\n- Vibe: ${l.details || 'Standard'}\n- STRICT RULES: ${l.rules || 'None'}`).join('\n\n')}\n</active_locations>\n`
+    ? `\n<active_locations>\n${triggeredLocs.map(l => `### ${l.name}\n#### Vibe & Atmosphere\n${l.details || 'Standard'}\n\n#### Strict Rules\n${l.rules || 'None'}`).join('\n\n')}\n</active_locations>\n`
     : '';
 
   // 4. <relevant_lore>
