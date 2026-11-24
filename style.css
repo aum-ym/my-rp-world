@@ -538,10 +538,10 @@ textarea:focus, select:focus, input:focus { border-color: var(--accent); }
 .modal-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 16px; }
 .modal { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 12px; width: 100%; max-width: 480px; max-height: 90vh; display: flex; flex-direction: column; }
 .modal.modal-lg { max-width: 750px; }
-.modal-header, .modal-footer { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.modal-header, .modal-footer { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-shrink: 0; }
 .modal-footer { border-bottom: none; border-top: 1px solid var(--border); justify-content: flex-end; }
 .modal-body { padding: 20px; overflow-y: auto; overflow-x: hidden; }
-.modal-tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--bg-dark); padding: 0 16px; gap: 6px; }
+.modal-tabs { display: flex; flex-wrap: wrap; flex-shrink: 0; border-bottom: 1px solid var(--border); background: var(--bg-dark); padding: 4px 16px 0; gap: 4px 10px; }
 .tab-btn { background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-muted); padding: 10px 10px; font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap; }
 .tab-btn:hover { color: var(--text-main); }
 .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
