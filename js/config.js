@@ -492,7 +492,16 @@ function setLoading(isLoading) {
   document.getElementById('headerStatus').textContent = isLoading ? 'Typing...' : 'Ready';
 }
 
-function openModal(id) { document.getElementById(id).classList.remove('hidden'); refreshIcons(); }
+function openModal(id) {
+  const el = document.getElementById(id);
+  if (!el) {
+    alert('ไม่พบหน้าต่าง Modal ID: ' + id + ' ในไฟล์ index.html');
+    return;
+  }
+  document.body.appendChild(el);
+  el.classList.remove('hidden');
+  refreshIcons();
+}
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 function toggleSidebar(side) {
   if (side === 'left') document.getElementById('sidebarLeft').classList.toggle('open');
