@@ -204,25 +204,29 @@ function updateRightSidebarCounts() {
 }
 
 function openPhotoAlbumModal() {
-  const modalId = document.getElementById('photoAlbumModal') ? 'photoAlbumModal' : 'albumModal';
-  const container = document.getElementById('albumGridContainer') || document.getElementById('photoAlbumGrid');
-  if (!container) return showToast('ไม่พบกล่องแสดงผลอัลบั้มรูป');
+  try {
+    const container = document.getElementById('albumGridContainer');
+    if (!container) return showToast('ไม่พบกล่องแสดงผลอัลบั้มรูป');
 
-  const photoMsgs = currentMessages.filter(m => m.image_url);
+    const photoMsgs = currentMessages.filter(m => m.image_url);
 
-  if (photoMsgs.length === 0) {
-    container.innerHTML = '<div class="hint">ยังไม่มีรูปภาพที่ส่งในห้องแชทนี้</div>';
-  } else {
-    container.innerHTML = photoMsgs.map(m => `
-      <div class="album-item">
-        <img src="${m.image_url}" onclick="openLightbox('${m.image_url}')" title="Click to enlarge" />
-        <button class="album-delete-btn" onclick="deletePhotoFromAlbum('${m.id}', '${m.image_url}')" title="Delete Photo">
-          <i data-lucide="trash-2" class="icon-xs"></i>
-        </button>
-      </div>
-    `).join('');
+    if (photoMsgs.length === 0) {
+      container.innerHTML = '<div class="hint">ยังไม่มีรูปภาพที่ส่งในห้องแชทนี้</div>';
+    } else {
+      container.innerHTML = photoMsgs.map(m => `
+        <div class="album-item">
+          <img src="${m.image_url}" onclick="openLightbox('${m.image_url}')" title="Click to enlarge" />
+          <button class="album-delete-btn" onclick="deletePhotoFromAlbum('${m.id}', '${m.image_url}')" title="Delete Photo">
+            <i data-lucide="trash-2" class="icon-xs"></i>
+          </button>
+        </div>
+      `).join('');
+    }
+    openModal('albumModal');
+  } catch (err) {
+    console.error(err);
+    showToast('เปิด Photo Album ไม่สำเร็จ: ' + err.message);
   }
-  openModal(modalId);
 }
 
 async function deletePhotoFromAlbum(msgId, imageUrl) {
@@ -241,29 +245,36 @@ async function deletePhotoFromAlbum(msgId, imageUrl) {
 }
 
 function openChatFavoritesModal() {
-  const container = document.getElementById('chatFavoritesList');
-  const favMsgs = currentMessages.filter(m => m.is_favorite);
-  const activePersona = getActivePersona();
+  try {
+    const container = document.getElementById('chatFavoritesList');
+    if (!container) return showToast('ไม่พบกล่องแสดงผลข้อความโปรด');
 
-  if (favMsgs.length === 0) {
-    container.innerHTML = '<div class="hint">ยังไม่มีข้อความโปรดในห้องแชทนี้</div>';
-  } else {
-    container.innerHTML = favMsgs.map(m => {
-      const sender = m.role === 'user' ? activePersona.name : currentChar.name;
-      return `
-        <div class="fav-card">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-            <strong style="font-size:13px; color:var(--accent);">${escapeHtml(sender)}</strong>
-            <button class="msg-action-btn favorited" onclick="toggleFavoriteMessage('${m.id}'); openChatFavoritesModal();">
-              <i data-lucide="heart-off" class="icon-xs"></i> Remove
-            </button>
+    const favMsgs = currentMessages.filter(m => m.is_favorite);
+    const activePersona = getActivePersona();
+
+    if (favMsgs.length === 0) {
+      container.innerHTML = '<div class="hint">ยังไม่มีข้อความโปรดในห้องแชทนี้</div>';
+    } else {
+      container.innerHTML = favMsgs.map(m => {
+        const sender = m.role === 'user' ? activePersona.name : (currentChar ? currentChar.name : 'Character');
+        return `
+          <div class="fav-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <strong style="font-size:13px; color:var(--accent);">${escapeHtml(sender)}</strong>
+              <button class="msg-action-btn favorited" onclick="toggleFavoriteMessage('${m.id}'); openChatFavoritesModal();">
+                <i data-lucide="heart-off" class="icon-xs"></i> Remove
+              </button>
+            </div>
+            <div class="msg-bubble" style="padding:0; background:transparent;">${formatRichContent(m.content || '', sender)}</div>
           </div>
-          <div class="msg-bubble" style="padding:0; background:transparent;">${formatRichContent(m.content, sender)}</div>
-        </div>
-      `;
-    }).join('');
+        `;
+      }).join('');
+    }
+    openModal('chatFavoritesModal');
+  } catch (err) {
+    console.error(err);
+    showToast('เปิด Favorites ไม่สำเร็จ: ' + err.message);
   }
-  openModal('chatFavoritesModal');
 }
 
 function exportChatAsMarkdown() {
