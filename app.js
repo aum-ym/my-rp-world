@@ -1,3 +1,7 @@
+// ==========================================
+// PART 1/2: CORE STATE, AUTH, CHARACTER STUDIO (6 TABS), CHATS & PERSONAS
+// ==========================================
+
 // --- STATE MANAGEMENT ---
 let supabaseClient = null;
 let currentUser = null;
@@ -21,7 +25,7 @@ let callTimerInterval = null;
 let callSecondsElapsed = 0;
 let expandedPhoneSessions = new Set();
 
-// Editor buffers (NPCs & Locations)
+// Editor buffers (Lorebook NPCs & Locations)
 let tempNpcList = [];
 let tempLocationList = [];
 let tempUserNpcList = [];
@@ -461,8 +465,12 @@ async function saveCustomStyles() {
 }
 
 // ==========================================
-// CHARACTERS HUB & CRUD (6 TABS + LOCATIONS & NPCS)
+// CHARACTERS HUB & CRUD (6 TABS + KEYWORD LOREBOOK & LOCATIONS)
 // ==========================================
+function getCharacterSummaryPreview(c) {
+  return c.basic_info || c.personality_trauma || c.personality || c.scenario || 'No description provided.';
+}
+
 async function loadCharacters() {
   const { data, error } = await supabaseClient
     .from('characters')
@@ -478,7 +486,10 @@ async function loadCharacters() {
 function renderCharacterHub() {
   const grid = document.getElementById('characterHubGrid');
   const query = (document.getElementById('hubSearchInput')?.value || '').toLowerCase();
-  const filtered = characters.filter(c => c.name.toLowerCase().includes(query) || (c.personality || '').toLowerCase().includes(query));
+  const filtered = characters.filter(c => {
+    const blob = `${c.name} ${c.basic_info || ''} ${c.personality_trauma || ''} ${c.personality || ''}`.toLowerCase();
+    return blob.includes(query);
+  });
 
   if (filtered.length === 0) {
     grid.innerHTML = '<div class="hint">ยังไม่มีตัวละคร กดปุ่ม Create Character ทางซ้ายเพื่อสร้างตัวแรกได้เลย</div>';
@@ -494,7 +505,7 @@ function renderCharacterHub() {
           <div style="font-size:11px; color:var(--text-muted);">${escapeHtml(c.starting_balance || '$5,000.00')}</div>
         </div>
       </div>
-      <div class="hub-card-desc">${escapeHtml(c.personality || c.scenario || 'No description provided.')}</div>
+      <div class="hub-card-desc">${escapeHtml(getCharacterSummaryPreview(c))}</div>
       <div class="btn-row">
         <button class="btn primary sm" style="flex:1;" onclick="startOrResumeCharacter('${c.id}')">
           <i data-lucide="message-square" class="icon-xs"></i> Chat
@@ -534,24 +545,36 @@ async function uploadCharacterAvatar(event) {
   }
 }
 
+// Lorebook / Supporting Characters Editor (Keywords + Always Active + Resizable Textarea)
 function renderNpcEditorList() {
   const container = document.getElementById('npcEditorList');
   if (tempNpcList.length === 0) {
-    container.innerHTML = '<div class="hint">ยังไม่มีตัวละครสมทบ กดปุ่มด้านล่างเพื่อเพิ่ม NPC ประจำเรื่อง</div>';
+    container.innerHTML = '<div class="hint">ยังไม่มีข้อมูลใน Lorebook กดปุ่มด้านล่างเพื่อเพิ่มตัวละครรอง ครอบครัว แฟนเก่า หรือความลับ</div>';
     return;
   }
-  container.innerHTML = tempNpcList.map((npc, idx) => `
-    <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:10px;">
-      <div style="display:flex; gap:8px; margin-bottom:6px;">
-        <input type="text" id="npcName_${idx}" value="${escapeHtml(npc.name || '')}" placeholder="ชื่อ NPC (เช่น Min-ho, Mom)" />
-        <input type="text" id="npcRole_${idx}" value="${escapeHtml(npc.role || '')}" placeholder="ความสัมพันธ์ (เช่น เพื่อนสนิท, แม่)" />
-        <button class="btn danger sm" onclick="removeNpcRow(${idx})" title="Remove">
-          <i data-lucide="trash-2" class="icon-xs"></i>
-        </button>
+  container.innerHTML = tempNpcList.map((npc, idx) => {
+    const isAlways = npc.always_active !== undefined ? npc.always_active : !npc.keywords;
+    const bodyText = npc.content || npc.traits || '';
+    return `
+      <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:12px;">
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
+          <input type="text" id="npcName_${idx}" value="${escapeHtml(npc.name || '')}" placeholder="ชื่อหัวข้อ / ตัวละคร (เช่น Song Siqi, Chen Jiahao, Cracked Wristwatch)" />
+          <input type="text" id="npcRole_${idx}" value="${escapeHtml(npc.role || '')}" placeholder="สถานะ (เช่น Ex-Girlfriend, Best Friend, Secret)" />
+          <button class="btn danger sm" onclick="removeNpcRow(${idx})" title="Remove">
+            <i data-lucide="trash-2" class="icon-xs"></i>
+          </button>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center; margin-bottom:8px; flex-wrap:wrap;">
+          <input type="text" id="npcKeywords_${idx}" value="${escapeHtml(npc.keywords || '')}" placeholder="Keywords คั่นด้วยลูกน้ำ (เช่น Siqi, ex, 思琪, แฟนเก่า)" style="flex:1; min-width:200px;" />
+          <label class="checkbox-label" style="margin:0; font-size:12px; white-space:nowrap;">
+            <input type="checkbox" id="npcAlways_${idx}" ${isAlways ? 'checked' : ''} />
+            <span>Always Active (จำตลอด)</span>
+          </label>
+        </div>
+        <textarea id="npcContent_${idx}" rows="3" placeholder="รายละเอียดรูปร่าง นิสัย ประวัติ และปฏิกิริยาที่ตัวละครหลักมีต่อสิ่งนี้ (ลากขยายความสูงได้)...">${escapeHtml(bodyText)}</textarea>
       </div>
-      <input type="text" id="npcTraits_${idx}" value="${escapeHtml(npc.traits || '')}" placeholder="นิสัยหรือจุดเด่นสั้นๆ..." />
-    </div>
-  `).join('');
+    `;
+  }).join('');
   refreshIcons();
 }
 
@@ -559,13 +582,15 @@ function syncNpcsFromInputs() {
   tempNpcList = tempNpcList.map((npc, idx) => ({
     name: document.getElementById(`npcName_${idx}`)?.value.trim() || '',
     role: document.getElementById(`npcRole_${idx}`)?.value.trim() || '',
-    traits: document.getElementById(`npcTraits_${idx}`)?.value.trim() || ''
+    keywords: document.getElementById(`npcKeywords_${idx}`)?.value.trim() || '',
+    always_active: document.getElementById(`npcAlways_${idx}`)?.checked || false,
+    content: document.getElementById(`npcContent_${idx}`)?.value.trim() || ''
   })).filter(n => n.name);
 }
 
 function addNewNpcRow() {
   syncNpcsFromInputs();
-  tempNpcList.push({ name: '', role: '', traits: '' });
+  tempNpcList.push({ name: '', role: '', keywords: '', always_active: false, content: '' });
   renderNpcEditorList();
 }
 
@@ -575,30 +600,43 @@ function removeNpcRow(idx) {
   renderNpcEditorList();
 }
 
+// Locations & Rules Editor (Keywords + Always Active + Resizable Textareas)
 function renderLocationEditorList() {
   const container = document.getElementById('locationEditorList');
   if (tempLocationList.length === 0) {
-    container.innerHTML = '<div class="hint">ยังไม่มีสถานที่ในเรื่อง กดปุ่มด้านล่างเพื่อเพิ่มสถานที่และกฎข้อห้าม</div>';
+    container.innerHTML = '<div class="hint">ยังไม่มีสถานที่ในเรื่อง กดปุ่มด้านล่างเพื่อเพิ่มสถานที่และกฎเหล็ก</div>';
     return;
   }
-  container.innerHTML = tempLocationList.map((loc, idx) => `
-    <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:10px;">
-      <div style="display:flex; gap:8px; margin-bottom:6px;">
-        <input type="text" id="locName_${idx}" value="${escapeHtml(loc.name || '')}" placeholder="ชื่อสถานที่ (เช่น Shared Apartment, St. Jude Academy)" />
-        <button class="btn danger sm" onclick="removeLocationRow(${idx})" title="Remove">
-          <i data-lucide="trash-2" class="icon-xs"></i>
-        </button>
+  container.innerHTML = tempLocationList.map((loc, idx) => {
+    const isAlways = loc.always_active !== undefined ? loc.always_active : !loc.keywords;
+    return `
+      <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:12px;">
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
+          <input type="text" id="locName_${idx}" value="${escapeHtml(loc.name || '')}" placeholder="ชื่อสถานที่ (เช่น NTU Mechanical Engineering Workshop, Yuze's Condo)" />
+          <button class="btn danger sm" onclick="removeLocationRow(${idx})" title="Remove">
+            <i data-lucide="trash-2" class="icon-xs"></i>
+          </button>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center; margin-bottom:8px; flex-wrap:wrap;">
+          <input type="text" id="locKeywords_${idx}" value="${escapeHtml(loc.keywords || '')}" placeholder="Keywords คั่นด้วยลูกน้ำ (เช่น workshop, lab, โรงฝึก, ช็อป)" style="flex:1; min-width:200px;" />
+          <label class="checkbox-label" style="margin:0; font-size:12px; white-space:nowrap;">
+            <input type="checkbox" id="locAlways_${idx}" ${isAlways ? 'checked' : ''} />
+            <span>Always Active (จำตลอด)</span>
+          </label>
+        </div>
+        <textarea id="locDetails_${idx}" rows="2" placeholder="บรรยากาศ กลิ่น เสียง ลักษณะพื้นที่ (Vibe)..." style="margin-bottom:8px;">${escapeHtml(loc.details || '')}</textarea>
+        <textarea id="locRules_${idx}" rows="2" placeholder="กฎเหล็ก / ข้อห้ามของสถานที่นี้ (Rules — บอทจะเอาไปใช้ดุหรือเตือน {{user}})...">${escapeHtml(loc.rules || '')}</textarea>
       </div>
-      <textarea id="locDetails_${idx}" rows="2" placeholder="รายละเอียดพื้นที่ & บรรยากาศ (เช่น ห้องอยู่ชั้น 4 มีระเบียงเชื่อมต่อกัน...)" style="margin-bottom:6px;">${escapeHtml(loc.details || '')}</textarea>
-      <input type="text" id="locRules_${idx}" value="${escapeHtml(loc.rules || '')}" placeholder="กฎระเบียบ / ข้อห้ามของสถานที่นี้ (เช่น ห้ามพาคนนอกเข้าหลัง 22:00, ต้องสแกนบัตร)" />
-    </div>
-  `).join('');
+    `;
+  }).join('');
   refreshIcons();
 }
 
 function syncLocationsFromInputs() {
   tempLocationList = tempLocationList.map((loc, idx) => ({
     name: document.getElementById(`locName_${idx}`)?.value.trim() || '',
+    keywords: document.getElementById(`locKeywords_${idx}`)?.value.trim() || '',
+    always_active: document.getElementById(`locAlways_${idx}`)?.checked || false,
     details: document.getElementById(`locDetails_${idx}`)?.value.trim() || '',
     rules: document.getElementById(`locRules_${idx}`)?.value.trim() || ''
   })).filter(l => l.name);
@@ -606,7 +644,7 @@ function syncLocationsFromInputs() {
 
 function addNewLocationRow() {
   syncLocationsFromInputs();
-  tempLocationList.push({ name: '', details: '', rules: '' });
+  tempLocationList.push({ name: '', keywords: '', always_active: false, details: '', rules: '' });
   renderLocationEditorList();
 }
 
@@ -617,7 +655,7 @@ function removeLocationRow(idx) {
 }
 
 function openCharModal(isEdit = false) {
-  switchCharTab('basic', document.querySelector('.tab-btn'));
+  switchCharTab('core', document.querySelector('.tab-btn'));
 
   if (isEdit && currentChar) {
     document.getElementById('charModalTitle').textContent = `Configure — ${currentChar.name}`;
@@ -625,10 +663,18 @@ function openCharModal(isEdit = false) {
     document.getElementById('charName').value = currentChar.name;
     document.getElementById('charAvatar').value = currentChar.avatar_url || '';
     document.getElementById('charAvatarPreview').src = currentChar.avatar_url || 'https://via.placeholder.com/56/1f1f24/71717a?text=' + encodeURIComponent(currentChar.name[0]);
-    document.getElementById('charImportantDates').value = currentChar.important_dates || '';
-    document.getElementById('charPersonality').value = currentChar.personality || '';
+
+    document.getElementById('charBasicInfo').value = currentChar.basic_info || '';
+    document.getElementById('charAppearanceStyle').value = currentChar.appearance_style || '';
+    document.getElementById('charPersonalityTrauma').value = currentChar.personality_trauma || currentChar.personality || '';
+    document.getElementById('charSpeechDynamics').value = currentChar.speech_dynamics || '';
+    document.getElementById('charAssetsItems').value = currentChar.assets_items || '';
+
+    document.getElementById('charWorldSetting').value = currentChar.world_setting || currentChar.important_dates || '';
+    document.getElementById('charUserRelationship').value = currentChar.user_relationship || '';
     document.getElementById('charScenario').value = currentChar.scenario || '';
     document.getElementById('charFirstMsg').value = currentChar.first_message || '';
+
     document.getElementById('charSystemPrompt').value = currentChar.system_prompt || '';
     document.getElementById('charExampleDialogue').value = currentChar.example_dialogue || '';
     document.getElementById('charJailbreak').value = currentChar.jailbreak || '';
@@ -636,13 +682,20 @@ function openCharModal(isEdit = false) {
     document.getElementById('charPhonePasscode').value = currentChar.phone_passcode || '';
     document.getElementById('charStartingBalance').value = currentChar.starting_balance || '$5,000.00';
     document.getElementById('charPhoneHint').value = currentChar.phone_hint || '';
+
     tempNpcList = Array.isArray(currentChar.supporting_chars) ? JSON.parse(JSON.stringify(currentChar.supporting_chars)) : [];
     tempLocationList = Array.isArray(currentChar.locations) ? JSON.parse(JSON.stringify(currentChar.locations)) : [];
     document.getElementById('btnDeleteChar').classList.remove('hidden');
   } else {
     document.getElementById('charModalTitle').textContent = 'Create New Character';
     document.getElementById('editCharId').value = '';
-    ['charName', 'charAvatar', 'charImportantDates', 'charPersonality', 'charScenario', 'charFirstMsg', 'charSystemPrompt', 'charExampleDialogue', 'charJailbreak', 'charHtmlBio', 'charPhonePasscode', 'charPhoneHint'].forEach(id => {
+    [
+      'charName', 'charAvatar', 'charBasicInfo', 'charAppearanceStyle',
+      'charPersonalityTrauma', 'charSpeechDynamics', 'charAssetsItems',
+      'charWorldSetting', 'charUserRelationship', 'charScenario', 'charFirstMsg',
+      'charSystemPrompt', 'charExampleDialogue', 'charJailbreak', 'charHtmlBio',
+      'charPhonePasscode', 'charPhoneHint'
+    ].forEach(id => {
       document.getElementById(id).value = '';
     });
     document.getElementById('charAvatarPreview').src = 'https://via.placeholder.com/56/1f1f24/71717a?text=C';
@@ -666,8 +719,13 @@ async function saveCharacter() {
     user_id: currentUser.id,
     name: document.getElementById('charName').value.trim(),
     avatar_url: document.getElementById('charAvatar').value.trim(),
-    important_dates: document.getElementById('charImportantDates').value.trim(),
-    personality: document.getElementById('charPersonality').value.trim(),
+    basic_info: document.getElementById('charBasicInfo').value.trim(),
+    appearance_style: document.getElementById('charAppearanceStyle').value.trim(),
+    personality_trauma: document.getElementById('charPersonalityTrauma').value.trim(),
+    speech_dynamics: document.getElementById('charSpeechDynamics').value.trim(),
+    assets_items: document.getElementById('charAssetsItems').value.trim(),
+    world_setting: document.getElementById('charWorldSetting').value.trim(),
+    user_relationship: document.getElementById('charUserRelationship').value.trim(),
     scenario: document.getElementById('charScenario').value.trim(),
     first_message: document.getElementById('charFirstMsg').value.trim(),
     system_prompt: document.getElementById('charSystemPrompt').value.trim(),
@@ -682,7 +740,7 @@ async function saveCharacter() {
   };
 
   if (!payload.name || !payload.first_message) {
-    return showToast('ต้องกรอก Character Name และ First Message ในแท็บแรกก่อนนะ');
+    return showToast('ต้องกรอก Character Name (แท็บ 1) และ First Message (แท็บ 2) ก่อนนะ');
   }
 
   if (id) {
@@ -696,7 +754,7 @@ async function saveCharacter() {
   }
 
   closeModal('charModal');
-  showToast('บันทึกข้อมูลตัวละคร สถานที่ และ NPC เรียบร้อย');
+  showToast('บันทึกข้อมูลตัวละคร โลก และ Lorebook เรียบร้อย');
   await loadCharacters();
   await loadAllRecentChats();
   startOrResumeCharacter(currentChar.id);
@@ -862,7 +920,7 @@ async function openSpecificChat(chatId) {
   document.getElementById('rightEmptyHint').classList.add('hidden');
   document.getElementById('activeSessionControls').classList.remove('hidden');
   document.getElementById('rightCharName').textContent = currentChar.name;
-  document.getElementById('rightCharBioPreview').textContent = currentChar.personality || currentChar.scenario || '';
+  document.getElementById('rightCharBioPreview').textContent = getCharacterSummaryPreview(currentChar);
   document.getElementById('memoryInput').value = currentChat.memory_notes || '';
 
   updateActivePersonaCard();
@@ -917,7 +975,7 @@ async function deleteCurrentChat() {
 }
 
 // ==========================================
-// PERSONA LIBRARY + USER'S SUPPORTING CAST
+// PERSONA LIBRARY + USER'S SUPPORTING CAST (RESIZABLE TEXTAREA)
 // ==========================================
 async function loadPersonas() {
   const { data, error } = await supabaseClient
@@ -990,13 +1048,13 @@ function renderUserNpcEditorList() {
     return;
   }
   container.innerHTML = tempUserNpcList.map((npc, idx) => `
-    <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:8px;">
-      <div style="display:flex; gap:6px; margin-bottom:5px;">
+    <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:10px;">
+      <div style="display:flex; gap:6px; margin-bottom:6px;">
         <input type="text" id="userNpcName_${idx}" value="${escapeHtml(npc.name || '')}" placeholder="ชื่อ (เช่น พี่ชาย, เพื่อนสนิท)" style="padding:6px 8px; font-size:12px;" />
         <input type="text" id="userNpcRole_${idx}" value="${escapeHtml(npc.role || '')}" placeholder="ความสัมพันธ์" style="padding:6px 8px; font-size:12px;" />
         <button class="btn danger sm" style="padding:4px 8px;" onclick="removeUserNpcRow(${idx})"><i data-lucide="trash-2" class="icon-xs"></i></button>
       </div>
-      <input type="text" id="userNpcTraits_${idx}" value="${escapeHtml(npc.traits || '')}" placeholder="นิสัยหรือรายละเอียดสั้นๆ..." style="padding:6px 8px; font-size:12px;" />
+      <textarea id="userNpcTraits_${idx}" rows="2" placeholder="นิสัยหรือรายละเอียดตัวละครเสริมฝั่งเรา (ลากขยายได้)..." style="padding:6px 8px; font-size:12px;">${escapeHtml(npc.traits || '')}</textarea>
     </div>
   `).join('');
   refreshIcons();
@@ -1121,6 +1179,9 @@ async function deletePersona() {
   resetPersonaForm();
   showToast('ลบ Persona เรียบร้อย');
 }
+// ==========================================
+// PART 2/2: PHONE MODE, CHAT RENDERING, XML + KEYWORD LOREBOOK API & SMARTPHONE OS
+// ==========================================
 
 // ==========================================
 // UNIFIED PHONE MODE (TEXTING + VOICE CALL IN ONE SESSION)
@@ -1203,7 +1264,6 @@ function updateUnifiedPhoneBannerUI() {
   }
 }
 
-// เปิด/ปิดการ์ดประวัติแชทโทรศัพท์ โดยไม่เลื่อนจอหนีลงล่างสุด (autoScroll = false)
 function togglePhoneSessionCard(sessionId) {
   if (expandedPhoneSessions.has(sessionId)) {
     expandedPhoneSessions.delete(sessionId);
@@ -1585,7 +1645,6 @@ async function sendStickerTagToChat(label) {
   await sendRawUserAction(`[STICKER: ${label}]`);
 }
 
-// ลบร่างข้อความรีเจน (Swipes) เก่าที่ไม่ได้เลือกทิ้งทันทีเมื่อ User พิมพ์ตอบกลับไปแล้ว
 async function prunePreviousBotSwipes() {
   const lastMsg = currentMessages[currentMessages.length - 1];
   if (lastMsg && lastMsg.role === 'assistant' && Array.isArray(lastMsg.swipes) && lastMsg.swipes.length > 1) {
@@ -2144,7 +2203,7 @@ async function switchSwipe(msgId, delta) {
 }
 
 // ==========================================
-// SEND MESSAGE & CORE API CALL (OOC RECAP + SCENE DIRECTION)
+// SEND MESSAGE & CORE API CALL (XML + CONTEXT CACHE + KEYWORD LOREBOOK)
 // ==========================================
 function handleImageSelect(event) {
   const file = event.target.files[0];
@@ -2181,7 +2240,6 @@ async function sendMessage() {
   inputEl.value = '';
   inputEl.style.height = 'auto';
 
-  // ลบร่างข้อความรีเจน (Swipes) เก่าที่ไม่ได้เลือกทิ้งทันทีที่ User ตอบกลับ
   await prunePreviousBotSwipes();
 
   const { oocDirective } = parseOocFromInput(rawText);
@@ -2191,7 +2249,7 @@ async function sendMessage() {
 - If this OOC is a question asking for a recap, status check, or behind-the-scenes clarification, answer the user's OOC question directly and helpfully inside an [OOC: ...] block!`
     : '';
 
-  // 1. กรณีอยู่ใน Unified Phone Mode -> ช่วง Texting
+  // 1. Unified Phone Mode -> Texting
   if (isUnifiedPhoneMode && !isCallSubMode) {
     try {
       let uploadedImageUrl = null;
@@ -2219,7 +2277,7 @@ async function sendMessage() {
     return;
   }
 
-  // 2. กรณีอยู่ใน Unified Phone Mode -> ช่วง Voice Call
+  // 2. Unified Phone Mode -> Voice Call
   if (isUnifiedPhoneMode && isCallSubMode) {
     setLoading(true);
     try {
@@ -2323,6 +2381,15 @@ ${oocSystemRule}`;
   }
 }
 
+// ฟังก์ชันเช็ก Keyword ในบริบทแชทล่าสุด (5 ข้อความล่าสุด + Scenario)
+function matchesLoreKeywords(entry, scanBlob) {
+  if (entry.always_active) return true;
+  if (!entry.keywords || !entry.keywords.trim()) return true;
+  const kwList = entry.keywords.split(',').map(k => k.trim().toLowerCase()).filter(Boolean);
+  if (kwList.length === 0) return true;
+  return kwList.some(kw => scanBlob.includes(kw));
+}
+
 async function requestDeepSeekCompletion(messageHistory, extraSystemRule = '') {
   document.getElementById('headerStatus').textContent = 'Typing...';
   const model = document.getElementById('modelSelect').value;
@@ -2335,29 +2402,77 @@ async function requestDeepSeekCompletion(messageHistory, extraSystemRule = '') {
     ...userStickers.map(s => s.label)
   ].join(', ');
 
-  // Supporting Cast (Both Character's & User's)
-  let npcBlock = '';
+  // 1. <character_profile> (อยู่บนสุดเสมอ เพื่อรักษา DeepSeek Context Cache)
+  const personalityBlock = currentChar.personality_trauma || currentChar.personality || 'Not specified.';
+  const characterProfileXml = `<character_profile>
+Name: ${currentChar.name}
+Financial Status / Starting Balance: ${currentChar.starting_balance || '$5,000.00'}
+
+### Basic Information
+${currentChar.basic_info || 'Not specified.'}
+
+### Physical Appearance & Style
+${currentChar.appearance_style || 'Not specified.'}
+
+### Personality, Trauma & Triggers (STRICTLY INTERNALIZED — DO NOT REVEAL SECRETS UNLESS TRIGGERED)
+${personalityBlock}
+
+### Speech & Dynamics
+${currentChar.speech_dynamics || 'Not specified.'}
+
+### Assets & Everyday Carry (EDC)
+${currentChar.assets_items || 'Not specified.'}
+${currentChar.example_dialogue ? `\n### Example Dialogue\n${currentChar.example_dialogue}` : ''}
+</character_profile>`;
+
+  // 2. <world_context> (บริบทโลก & ความสัมพันธ์เริ่มต้น & คู่เล่น User)
+  const worldSettingText = currentChar.world_setting || currentChar.important_dates || 'Not specified.';
+  const worldContextXml = `<world_context>
+### Setting & Cultural Context
+${worldSettingText}
+
+### Initial Relationship with ${activePersona.name}
+${currentChar.user_relationship || 'Not specified.'}
+
+### Current Opening Scenario
+${currentChar.scenario || 'Not specified.'}
+
+### Roleplay Partner (${activePersona.name})
+${activePersona.description || 'Not specified.'}
+</world_context>`;
+
+  // สแกนหา Keyword ใน 5 ข้อความล่าสุด + Scenario
+  const recentScanBlob = (
+    (currentChar.scenario || '') + ' ' +
+    messageHistory.slice(-5).map(m => m.content).join(' ')
+  ).toLowerCase();
+
+  // 3. <active_locations> (ดึงเฉพาะสถานที่ที่ตรง Keyword หรือตั้ง Always Active)
+  const allLocs = Array.isArray(currentChar.locations) ? currentChar.locations : [];
+  const triggeredLocs = allLocs.filter(l => matchesLoreKeywords(l, recentScanBlob));
+  const activeLocationsXml = triggeredLocs.length > 0
+    ? `\n<active_locations>\n${triggeredLocs.map(l => `### ${l.name}\n- Vibe: ${l.details || 'Standard'}\n- STRICT RULES: ${l.rules || 'None'}`).join('\n\n')}\n</active_locations>\n`
+    : '';
+
+  // 4. <relevant_lore> (ดึงตัวละครรอง/ความลับของทั้งฝั่งบอทและฝั่ง User ที่ตรง Keyword หรือ Always Active)
   const charNpcs = Array.isArray(currentChar.supporting_chars) ? currentChar.supporting_chars : [];
+  const triggeredCharNpcs = charNpcs.filter(n => matchesLoreKeywords(n, recentScanBlob));
   const userNpcs = Array.isArray(activePersona.supporting_chars) ? activePersona.supporting_chars : [];
-  if (charNpcs.length > 0 || userNpcs.length > 0) {
-    const cLines = charNpcs.map(n => `- [${currentChar.name}'s Side] ${n.name} (${n.role}): ${n.traits}`);
-    const uLines = userNpcs.map(n => `- [${activePersona.name}'s Side] ${n.name} (${n.role}): ${n.traits}`);
-    npcBlock = `\n[Supporting Cast / Known NPCs in Story]\n${[...cLines, ...uLines].join('\n')}\n`;
-  }
 
-  // Locations & Rules
-  let locationsBlock = '';
-  if (Array.isArray(currentChar.locations) && currentChar.locations.length > 0) {
-    const locLines = currentChar.locations.map(l => `- ${l.name}: ${l.details}${l.rules ? ` [STRICT RULES/RESTRICTIONS: ${l.rules}]` : ''}`).join('\n');
-    locationsBlock = `\n[Key World Locations & Area Rules — OBEY STRICTLY WHEN IN THESE PLACES]\n${locLines}\n`;
-  }
+  const loreEntries = [
+    ...triggeredCharNpcs.map(n => `### ${n.name} (${n.role || 'Lore Entry'})\n${n.content || n.traits || ''}`),
+    ...userNpcs.map(n => `### ${n.name} (${activePersona.name}'s ${n.role || 'Ally'})\n${n.traits || ''}`)
+  ];
+  const relevantLoreXml = loreEntries.length > 0
+    ? `\n<relevant_lore>\n${loreEntries.join('\n\n')}\n</relevant_lore>\n`
+    : '';
 
-  // Upcoming Phone Calendar (ดึงจาก currentChat.phone_data ประจำห้องแชทนี้)
+  // Upcoming Phone Calendar
   const pData = currentChat.phone_data || {};
   let upcomingScheduleBlock = '';
   if (Array.isArray(pData.calendar) && pData.calendar.length > 0) {
     const calItems = pData.calendar.map(c => `- ${pData.story_year || ''}-${pData.story_month || ''}-${c.day || c.date}: ${c.title} (${c.time || 'All day'}) ${c.note ? '- ' + c.note : ''}`).join('\n');
-    upcomingScheduleBlock = `\n[Your Phone Calendar & Upcoming Plans (Reference naturally when talking about upcoming days)]\n${calItems}\n`;
+    upcomingScheduleBlock = `\n<phone_calendar>\n${calItems}\n</phone_calendar>\n`;
   }
 
   const rubiiInstruction = useRubiiHtml
@@ -2366,31 +2481,22 @@ async function requestDeepSeekCompletion(messageHistory, extraSystemRule = '') {
 
   const systemPrompt = `${currentChar.system_prompt ? currentChar.system_prompt + '\n\n' : ''}You are roleplaying as ${currentChar.name}.
 
-[CRITICAL LORE, BIRTHDAYS & UNBREAKABLE FACTS — MUST REVIEW BEFORE EVERY REPLY]
-${currentChar.important_dates || 'None specified.'}
+${characterProfileXml}
 
-[Character Personality & Lore]
-${currentChar.personality || 'Not specified.'}
-Your Financial Status / Starting Balance: ${currentChar.starting_balance || '$5,000.00'}
-
-[Current Scenario]
-${currentChar.scenario || 'Not specified.'}
-${locationsBlock}${npcBlock}${upcomingScheduleBlock}
-${currentChar.example_dialogue ? `[Example Dialogue]\n${currentChar.example_dialogue}\n\n` : ''}[User / Roleplay Partner Profile]
-Name: ${activePersona.name}
-Details: ${activePersona.description || 'Not specified.'}
-
-[Pinned Memory / Plot Notes]
+${worldContextXml}
+${activeLocationsXml}${relevantLoreXml}${upcomingScheduleBlock}
+<pinned_memory>
 ${currentChat.memory_notes || 'None.'}
+</pinned_memory>
 
-[Roleplay Rules & Special Actions]
-- Before generating your response, double-check [CRITICAL LORE, BIRTHDAYS & UNBREAKABLE FACTS], [Key World Locations & Area Rules], and [Your Phone Calendar] so you never contradict dates, location rules, or upcoming plans.
-- Stay strictly in character as ${currentChar.name}.
+<roleplay_rules>
+- Obey all facts in <character_profile>, <world_context>, and <active_locations> without contradicting dates, trauma triggers, or location rules.
+- Stay strictly in character as ${currentChar.name}. Never speak or act on behalf of ${activePersona.name}.
 - Use *asterisks* for actions/thoughts and standard text or "quotes" for spoken dialogue.
-- Never speak or act on behalf of ${activePersona.name}.
 - [Emojis & Stickers]: You may use natural emojis in casual messages or phone texts, and send chat stickers using [STICKER: name] (Available: ${allStickerNames}).
 - [Money Transfer]: If ${activePersona.name} transfers money to you ([USER_TRANSFER: amount | note]), react naturally! If the story makes sense for YOU (${currentChar.name}) to transfer money to ${activePersona.name}, include [BOT_TRANSFER: amount | reason] on its own line (use currency "${userCurrency}" if appropriate).${rubiiInstruction}
-${activeStyle && activeStyle.prompt ? '\n' + activeStyle.prompt : ''}`;
+${activeStyle && activeStyle.prompt ? '- ' + activeStyle.prompt : ''}
+</roleplay_rules>`;
 
   const apiMessages = [{ role: 'system', content: systemPrompt }];
 
@@ -2421,7 +2527,7 @@ ${activeStyle && activeStyle.prompt ? '\n' + activeStyle.prompt : ''}`;
     apiMessages.push({ role: 'system', content: extraSystemRule });
   }
 
-  const response = await fetch('https://api.deepseek.com/chat/completions', {
+  const response = await fetch('[https://api.deepseek.com/chat/completions](https://api.deepseek.com/chat/completions)', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -2495,7 +2601,6 @@ async function saveEditedMessage(msgId) {
   showToast('แก้ไขข้อความแล้ว');
 }
 
-// Cascade Delete: ลบข้อความนี้และข้อความทั้งหมดที่อยู่ต่อจากนั้นออกจาก Supabase และหน้าจอถาวร
 async function deleteMessage(msgId) {
   const targetIdx = currentMessages.findIndex(m => m.id === msgId);
   if (targetIdx === -1) return;
@@ -2556,7 +2661,7 @@ ${recentMsgs}
 - Output ONLY concise bullet points (max 150-200 words). No intro or outro text.
 - Write in the primary language used in the roleplay.`;
 
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
+    const response = await fetch('[https://api.deepseek.com/chat/completions](https://api.deepseek.com/chat/completions)', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${deepseekApiKey}` },
       body: JSON.stringify({ model: 'deepseek-flash', messages: [{ role: 'user', content: prompt }], temperature: 0.5 })
@@ -3294,11 +3399,17 @@ async function generatePhoneContent(isManualResync = true) {
       ? currentChar.supporting_chars.map(n => `${n.name} (${n.role})`).join(', ')
       : 'None specified';
 
+    const charSummaryForPhone = [
+      currentChar.basic_info,
+      currentChar.personality_trauma || currentChar.personality,
+      currentChar.assets_items
+    ].filter(Boolean).join('\n');
+
     const prompt = `Generate realistic, cross-consistent smartphone data for the character "${currentChar.name}" in this specific roleplay timeline.
 
 [Character Lore & Setting]
-Personality & Occupation/School: ${currentChar.personality || 'Not specified'}
-Important Dates & Story Timeline Year/Month: ${currentChar.important_dates || 'None'}
+${charSummaryForPhone || 'Not specified'}
+World & Dates: ${currentChar.world_setting || currentChar.important_dates || 'None'}
 Supporting Cast / NPCs: ${npcListStr}
 Scenario / Current Scene: ${currentChar.scenario || 'Not specified'}
 Lore Starting Balance: ${currentChar.starting_balance || '$5,000.00'}
@@ -3308,11 +3419,11 @@ Roleplay Partner: ${activePersona.name}
 ${recentHistory}
 
 [STRICT RULES — FOLLOW EVERY SINGLE ONE]
-1. SYSTEM LANGUAGE = ENGLISH ONLY: Write ALL UI labels, messages, notes, calendar events, browser searches, voice memos, and secrets in natural ENGLISH regardless of the character's nationality! (Romanized local names like "Hongdae", "Tteokbokki", or "Gangnam" are allowed for flavor, NEVER Korean/Japanese/Chinese characters).
+1. SYSTEM LANGUAGE = ENGLISH ONLY: Write ALL UI labels, messages, notes, calendar events, browser searches, voice memos, and secrets in natural ENGLISH regardless of the character's nationality! (Romanized local names like "Gongguan", "Tteokbokki", or "Taipei" are allowed for flavor, NEVER Korean/Japanese/Chinese characters).
 2. DYNAMIC VIBE PALETTE: Generate a custom hex color palette in "theme_palette" matching the character's personality. Ensure high contrast between bg_color and text_color!
 3. STORY-ACCURATE CALENDAR: Extract the exact year, month (1-12), and current day from the story/lore. Populate "calendar" with realistic events on specific day numbers (1-31) matching their life AND upcoming plans discussed in the roleplay!
 4. CROSS-APP CONSISTENCY: Use supporting cast NPCs in Messages/Calendar when appropriate. Match timestamps and amounts across Messages, Shopping, and Banking (use varied minute timestamps like 16:04, 19:18).
-5. GALLERY KEYWORDS: Provide a simple 2-word English object/scene "search_keyword" (e.g., "ice rink", "coffee cup", "night street", "snowy city") plus "visual_desc".
+5. GALLERY KEYWORDS: Provide a simple 2-word English object/scene "search_keyword" (e.g., "motorcycle night", "coffee cup", "rainy street", "workshop tools") plus "visual_desc".
 6. SECRET VAULT & VOICE MEMOS: Populate "voice_memos" (1-2 candid audio recordings) and "secret_vault" (unsent text drafts to ${activePersona.name} or deep lore secrets).
 7. PASSCODE: ${customPassRule}
 
@@ -3322,7 +3433,7 @@ Output valid JSON ONLY matching this exact schema:
   "story_month": 11,
   "story_day": 14,
   "story_date_label": "Thursday, November 14, 2024",
-  "passcode": "0136",
+  "passcode": "1114",
   "passcode_hint": "Short clue in English",
   "theme_palette": {
     "bg_color": "#141418",
@@ -3359,12 +3470,12 @@ Output valid JSON ONLY matching this exact schema:
     { "place": "Place name", "time": "Today 15:12", "note": "Reason" }
   ],
   "browser": [
-    { "query": "Search query in English", "time": "23:14", "visited_site": "Naver / Google" }
+    { "query": "Search query in English", "time": "23:14", "visited_site": "Google" }
   ],
   "bank": {
     "balance": "Formatted balance matching setting currency",
     "transactions": [
-      { "title": "Transfer or Shop", "datetime": "Today 16:07", "amount": "+₩50,000" }
+      { "title": "Transfer or Shop", "datetime": "Today 16:07", "amount": "-$25.00" }
     ]
   },
   "music": {
@@ -3376,7 +3487,7 @@ Output valid JSON ONLY matching this exact schema:
     ]
   },
   "shopping": [
-    { "item": "Item name", "price": "₩18,500", "status": "Shipped", "ordered_at": "Today 19:18", "reason": "Reason" }
+    { "item": "Item name", "price": "$45.00", "status": "Shipped", "ordered_at": "Today 19:18", "reason": "Reason" }
   ],
   "voice_memos": [
     { "title": "Late night recording", "duration": "00:38", "transcript": "Spoken words & vocal tone description", "recorded_at": "Yesterday 01:14" }
@@ -3387,7 +3498,7 @@ Output valid JSON ONLY matching this exact schema:
   ]
 }`;
 
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
+    const response = await fetch('[https://api.deepseek.com/chat/completions](https://api.deepseek.com/chat/completions)', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${deepseekApiKey}` },
       body: JSON.stringify({ model: 'deepseek-flash', messages: [{ role: 'user', content: prompt }], response_format: { type: 'json_object' }, temperature: 1.0 })

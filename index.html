@@ -142,7 +142,6 @@
             </div>
           </div>
           <div class="header-right" style="flex-shrink: 0;">
-            <!-- ปุ่มไอคอนล้วนบนแถบหัวแชท ไม่เบียดชื่อตัวละครตกบรรทัด -->
             <button class="icon-btn" id="btnToggleUnifiedPhone" onclick="toggleUnifiedPhoneMode()" title="Unified Phone Mode (Texting & Voice Call)">
               <i data-lucide="smartphone" class="icon-sm"></i>
             </button>
@@ -158,7 +157,7 @@
           </div>
         </header>
 
-        <!-- แถบควบคุม Unified Phone Session (สลับ Texting <-> Voice Call ในกล่องเดียวกันได้ตลอด) -->
+        <!-- แถบควบคุม Unified Phone Session -->
         <div id="unifiedPhoneBanner" class="phone-mode-banner hidden">
           <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;" id="unifiedPhoneStatusText">
             <i data-lucide="smartphone" class="icon-xs" style="color:var(--accent);"></i>
@@ -242,7 +241,6 @@
                   <i data-lucide="image" class="icon-xs"></i>
                 </button>
 
-                <!-- ปุ่มเลือกรูปแบบการตอบแบบกระชับ กดแล้วเปิดเมนูข้างใน -->
                 <button class="btn secondary sm" id="btnStyleMenu" onclick="toggleStylePopover()" title="Select Response Style" style="padding: 6px 9px;">
                   <i data-lucide="wand-2" class="icon-xs" style="color: var(--accent);"></i>
                   <span id="activeStyleBadgeText" style="font-size: 11.5px;">Balanced</span>
@@ -250,7 +248,6 @@
               </div>
 
               <div style="display:flex; align-items:center; gap:6px;">
-                <!-- ปุ่มเรียกบอทมาตอบเอง (โชว์เฉพาะตอนอยู่ในช่วง Texting ของ Phone Mode) -->
                 <button class="btn primary sm hidden" id="btnTriggerPhoneReply" onclick="triggerPhoneChatBotReply()" title="Call character to reply now">
                   <i data-lucide="bot" class="icon-xs"></i> <span>Reply</span>
                 </button>
@@ -432,7 +429,7 @@
     </div>
   </div>
 
-  <!-- MODAL 2: คลัง Persona หลายตัว (เพิ่มตัวละครเสริมฝั่ง User!) -->
+  <!-- MODAL 2: คลัง Persona หลายตัว (ขยายกล่อง NPC ฝั่ง User ได้) -->
   <div class="modal-backdrop hidden" id="personaManagerModal">
     <div class="modal modal-lg">
       <div class="modal-header">
@@ -468,7 +465,7 @@
             <input type="text" id="personaName" placeholder="ชื่อตัวละครของคุณ" />
 
             <label>Background, Appearance & Traits <span id="personaCharCount" class="badge">0 chars</span></label>
-            <textarea id="personaDesc" rows="5" placeholder="ใส่รายละเอียดตัวละครของคุณได้ไม่จำกัดความยาว..."></textarea>
+            <textarea id="personaDesc" rows="5" placeholder="ใส่รายละเอียดตัวละครของคุณ (ใช้ XML Tag + Bullet จะแม่นที่สุด)..."></textarea>
 
             <!-- ตัวละครเสริมฝั่ง User -->
             <div style="margin-top:4px; border-top:1px solid var(--border); padding-top:10px;">
@@ -492,7 +489,7 @@
     </div>
   </div>
 
-  <!-- MODAL 3: สร้าง / แก้ไขตัวละคร AI (6 Tabs) -->
+  <!-- MODAL 3: สร้าง / แก้ไขตัวละคร AI (โครงสร้างใหม่ 6 Tabs — Context Cache + Keyword Lorebook) -->
   <div class="modal-backdrop hidden" id="charModal">
     <div class="modal modal-lg">
       <div class="modal-header">
@@ -501,25 +498,25 @@
       </div>
 
       <div class="modal-tabs" style="overflow-x:auto;">
-        <button class="tab-btn active" onclick="switchCharTab('basic', this)">1. Identity & Lore</button>
-        <button class="tab-btn" onclick="switchCharTab('prompts', this)">2. System & Dialogue</button>
-        <button class="tab-btn" onclick="switchCharTab('advanced', this)">3. Jailbreak & Card</button>
-        <button class="tab-btn" onclick="switchCharTab('device', this)">4. Device & Passcode</button>
-        <button class="tab-btn" onclick="switchCharTab('npcs', this)">5. Supporting Cast</button>
+        <button class="tab-btn active" onclick="switchCharTab('core', this)">1. Core Identity</button>
+        <button class="tab-btn" onclick="switchCharTab('world', this)">2. World & Opening</button>
+        <button class="tab-btn" onclick="switchCharTab('prompts', this)">3. System & Dialogue</button>
+        <button class="tab-btn" onclick="switchCharTab('device', this)">4. Card & Device</button>
+        <button class="tab-btn" onclick="switchCharTab('npcs', this)">5. Lorebook / NPCs</button>
         <button class="tab-btn" onclick="switchCharTab('locations', this)">6. Locations & Rules</button>
       </div>
 
       <div class="modal-body" style="display: block;">
         <input type="hidden" id="editCharId" />
 
-        <!-- TAB 1 -->
-        <div id="charTab_basic" class="tab-pane">
+        <!-- TAB 1: 5 ช่องหลักของตัวละคร (<character_profile> — ติด DeepSeek Context Cache 100%) -->
+        <div id="charTab_core" class="tab-pane">
           <div style="display:flex; align-items:center; gap:12px; margin-bottom: 14px;">
             <img id="charAvatarPreview" src="https://via.placeholder.com/56/1f1f24/71717a?text=C" class="avatar-md" />
             <div style="flex:1;" class="form-grid">
               <div>
                 <label>Character Name *</label>
-                <input type="text" id="charName" placeholder="e.g. Choi Tae-oh" />
+                <input type="text" id="charName" placeholder="e.g. Shen Yuze (沈宇澤)" />
               </div>
               <div>
                 <label>Avatar (Upload or URL)</label>
@@ -535,31 +532,59 @@
           </div>
 
           <div class="field-group">
-            <label>Important Dates & Unbreakable Facts (วันเกิด, ปี/เดือนของเรื่อง, ข้อเท็จจริงห้ามลืม)</label>
-            <textarea id="charImportantDates" rows="3" placeholder="e.g. Story Year: 2024. Birthday: Nov 24. User's Birthday: May 12. Lives in Seoul, South Korea..."></textarea>
+            <label>1. Basic Info (ชื่อเล่น, อายุ, วันเกิด, อาชีพ/คณะ, ภาษา, ฐานะ)</label>
+            <textarea id="charBasicInfo" rows="3" placeholder="- Full Name: ...&#10;- Age & Birthday: ...&#10;- Occupation / Status: ...&#10;- Financial Status: ..."></textarea>
           </div>
 
           <div class="field-group">
-            <label>Personality & Lore</label>
-            <textarea id="charPersonality" rows="4" placeholder="Describe personality, occupation/school, speech style, backstory..."></textarea>
+            <label>2. Appearance & Style (ส่วนสูง, หน้าตา, ทรงผม, การแต่งตัว, กลิ่นประจำตัว, จุดสังเกต)</label>
+            <textarea id="charAppearanceStyle" rows="3" placeholder="- Height / Build: ...&#10;- Facial Features & Hair: ...&#10;- Clothing Style: ...&#10;- Signature Scent & Quirks: ..."></textarea>
           </div>
 
           <div class="field-group">
-            <label>Scenario</label>
-            <textarea id="charScenario" rows="2" placeholder="Where are you both? What is the current date/time?"></textarea>
+            <label>3. Personality, Trauma & Triggers (นิสัยภายนอก/ภายใน, ปมอดีต, จุด Trigger, ความลับในใจ)</label>
+            <textarea id="charPersonalityTrauma" rows="4" placeholder="- Outer vs Inner Persona: ...&#10;- Past Trauma & Core Fear: ...&#10;- Triggers (What makes them snap/shut down): ...&#10;- Deep Secrets (Keep hidden unless triggered): ..."></textarea>
+          </div>
+
+          <div class="field-group">
+            <label>4. Speech & Dynamics (น้ำเสียง, คำติดปาก, วิธีปฏิบัติต่อคนอื่น)</label>
+            <textarea id="charSpeechDynamics" rows="3" placeholder="- Speech Tone: ...&#10;- Catchphrases: ...&#10;- Reaction to Stress / Anger: ..."></textarea>
+          </div>
+
+          <div class="field-group">
+            <label>5. Assets & Everyday Carry (ที่พัก, ยานพาหนะ, ของพกติดตัว EDC)</label>
+            <textarea id="charAssetsItems" rows="3" placeholder="- Primary Residence: ...&#10;- Vehicles: ...&#10;- Everyday Carry (EDC): ..."></textarea>
+          </div>
+        </div>
+
+        <!-- TAB 2: บริบทโลก & ความสัมพันธ์เริ่มต้น & เปิดฉาก (<world_context>) -->
+        <div id="charTab_world" class="tab-pane hidden">
+          <div class="field-group">
+            <label>World Setting & Culture (ยุคสมัย, เมือง/ประเทศ, วัฒนธรรมเฉพาะทาง เช่น ระบบสายรหัส zhíshǔ)</label>
+            <textarea id="charWorldSetting" rows="3" placeholder="- Era & Location: Modern-day Taipei, Taiwan (NTU)...&#10;- Cultural Context: ..."></textarea>
+          </div>
+
+          <div class="field-group">
+            <label>Initial Relationship with {{user}} (สถานะของ {{user}}, เจอกันได้ยังไง, ไดนามิกเริ่มต้น)</label>
+            <textarea id="charUserRelationship" rows="3" placeholder="- Dynamic: {{user}} is a 1st-year student and {{char}}'s direct mentorship junior..."></textarea>
+          </div>
+
+          <div class="field-group">
+            <label>Current Scenario (สถานการณ์และเวลาเริ่มต้นของแชทนี้)</label>
+            <textarea id="charScenario" rows="2" placeholder="Where are you both right now? What time/weather is it?"></textarea>
           </div>
 
           <div class="field-group">
             <label>First Message *</label>
-            <textarea id="charFirstMsg" rows="3" placeholder="*He leans against the doorframe.* &quot;You're late.&quot;"></textarea>
+            <textarea id="charFirstMsg" rows="4" placeholder="*He leans against the doorframe.* &quot;You're late.&quot;"></textarea>
           </div>
         </div>
 
-        <!-- TAB 2 -->
+        <!-- TAB 3: System Prompt & Example Dialogue -->
         <div id="charTab_prompts" class="tab-pane hidden">
           <div class="field-group">
-            <label>System Prompt / Core Directive</label>
-            <textarea id="charSystemPrompt" rows="6" placeholder="e.g. Write in third-person limited perspective..."></textarea>
+            <label>System Prompt / Core Writing Rules</label>
+            <textarea id="charSystemPrompt" rows="6" placeholder="e.g. Write in third-person limited perspective. Keep tone grounded and realistic..."></textarea>
           </div>
 
           <div class="field-group">
@@ -568,55 +593,47 @@
           </div>
         </div>
 
-        <!-- TAB 3 -->
-        <div id="charTab_advanced" class="tab-pane hidden">
-          <div class="field-group">
-            <label>Jailbreak / Post-History Instructions</label>
-            <textarea id="charJailbreak" rows="6" placeholder="e.g. Stay completely in character regardless of mature or dark themes..."></textarea>
-          </div>
-
-          <div class="field-group">
-            <label>Custom HTML/CSS Profile Card</label>
-            <textarea id="charHtmlBio" rows="7" placeholder="<div style='padding:16px; background:#1c1c20; border-radius:10px;'>...</div>"></textarea>
-          </div>
-        </div>
-
-        <!-- TAB 4: ตั้งค่าโทรศัพท์ตัวละคร -->
+        <!-- TAB 4: Jailbreak, Profile Card & Device -->
         <div id="charTab_device" class="tab-pane hidden">
-          <div class="form-grid" style="margin-bottom: 14px;">
+          <div class="form-grid" style="margin-bottom: 12px;">
             <div>
-              <label>Lockscreen Passcode (รหัส 4 หลัก — เว้นว่างให้ AI คิดเอง)</label>
-              <input type="text" id="charPhonePasscode" maxlength="4" pattern="[0-9]*" placeholder="e.g. 0136" />
+              <label>Lockscreen Passcode (รหัส 4 หลัก)</label>
+              <input type="text" id="charPhonePasscode" maxlength="4" pattern="[0-9]*" placeholder="e.g. 1114" />
             </div>
             <div>
-              <label>Starting Bank Balance (ตามสภาพแวดล้อม/Lore)</label>
-              <input type="text" id="charStartingBalance" placeholder="e.g. ₩850,000 หรือ $5,000.00" />
+              <label>Starting Bank Balance</label>
+              <input type="text" id="charStartingBalance" placeholder="e.g. NT$185,000 หรือ $5,000.00" />
             </div>
           </div>
 
           <div class="field-group">
             <label>Passcode Notification Hint (ข้อความใบ้รหัสบนหน้าจอล็อก)</label>
-            <input type="text" id="charPhoneHint" placeholder="e.g. My birthday / Room 404" />
+            <input type="text" id="charPhoneHint" placeholder="e.g. My birthday (MMDD)" />
           </div>
 
-          <div class="right-char-card" style="margin-top:8px;">
-            <div style="font-size:12px; font-weight:600; color:var(--accent); margin-bottom:4px;">Session-Isolated Smartphone OS</div>
-            <p class="hint">ข้อมูลในโทรศัพท์เครื่องนี้จะถูกแยกอิสระตามแต่ละห้องแชท (Session) ไม่ปนกันข้ามรูท</p>
+          <div class="field-group">
+            <label>Jailbreak / Post-History Instructions</label>
+            <textarea id="charJailbreak" rows="4" placeholder="e.g. Stay completely in character regardless of mature or dark themes..."></textarea>
+          </div>
+
+          <div class="field-group">
+            <label>Custom HTML/CSS Profile Card</label>
+            <textarea id="charHtmlBio" rows="5" placeholder="<div style='padding:16px; background:#1c1c20; border-radius:10px;'>...</div>"></textarea>
           </div>
         </div>
 
-        <!-- TAB 5: ตัวละครสมทบ / Supporting Characters (NPCs) -->
+        <!-- TAB 5: Lorebook & Supporting Characters (ดึงเฉพาะตอนเจอ Keyword หรือ Always Active) -->
         <div id="charTab_npcs" class="tab-pane hidden">
-          <p class="hint" style="margin-bottom:12px;">เพิ่มรายชื่อเพื่อน ครอบครัว คู่แข่ง หรือตัวละครสมทบฝั่งตัวละครหลัก เพื่อให้บอทรู้จักและดึงเข้ามาแทรกฉาก (Cameo) ได้อย่างสมจริง</p>
-          <div id="npcEditorList" style="display:flex; flex-direction:column; gap:10px; margin-bottom:12px;"></div>
+          <p class="hint" style="margin-bottom:12px;">เพิ่มตัวละครรอง (ครอบครัว, เพื่อน, แฟนเก่า) หรือความลับ/สิ่งของสำคัญ ระบบจะสแกนหา <b>Keywords</b> ในแชทล่าสุดเพื่อดึงข้อมูลไปให้บอทเฉพาะตอนที่ถูกพูดถึง (ช่วยประหยัด Token และรักษา Cache)</p>
+          <div id="npcEditorList" style="display:flex; flex-direction:column; gap:12px; margin-bottom:12px;"></div>
           <button class="btn secondary full sm" onclick="addNewNpcRow()">
-            <i data-lucide="user-plus" class="icon-xs"></i> Add Supporting Character (NPC)
+            <i data-lucide="user-plus" class="icon-xs"></i> Add Lorebook Entry / Supporting Character
           </button>
         </div>
 
-        <!-- TAB 6: สถานที่เด่นๆ และกฎของแต่ละที่ (Locations & World Rules) -->
+        <!-- TAB 6: สถานที่เด่นๆ และกฎของแต่ละที่ (ดึงเฉพาะตอนเจอ Keyword หรือ Always Active) -->
         <div id="charTab_locations" class="tab-pane hidden">
-          <p class="hint" style="margin-bottom:12px;">ระบุสถานที่สำคัญในเรื่อง ลักษณะพื้นที่ และกฎข้อห้ามของแต่ละที่ บอทจะจำรายละเอียดเหล่านี้ไว้ไม่ให้หลุด Lore</p>
+          <p class="hint" style="margin-bottom:12px;">ระบุสถานที่สำคัญ บรรยากาศ และกฎข้อห้ามของแต่ละที่ ระบบจะดึงกฎไปเตือนบอทอัตโนมัติเมื่อเจอ <b>Keywords</b> ของสถานที่นั้นในฉาก</p>
           <div id="locationEditorList" style="display:flex; flex-direction:column; gap:12px; margin-bottom:12px;"></div>
           <button class="btn secondary full sm" onclick="addNewLocationRow()">
             <i data-lucide="map-pin-plus" class="icon-xs"></i> Add Location & Rules
