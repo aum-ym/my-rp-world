@@ -631,15 +631,14 @@
           </button>
         </div>
 
-        <!-- TAB 6: สถานที่เด่นๆ และกฎของแต่ละที่ (ดึงเฉพาะตอนเจอ Keyword หรือ Always Active) -->
+        <!-- TAB 6: สถานที่เด่นๆ และกฎของแต่ละที่ -->
         <div id="charTab_locations" class="tab-pane hidden">
           <p class="hint" style="margin-bottom:12px;">ระบุสถานที่สำคัญ บรรยากาศ และกฎข้อห้ามของแต่ละที่ ระบบจะดึงกฎไปเตือนบอทอัตโนมัติเมื่อเจอ <b>Keywords</b> ของสถานที่นั้นในฉาก</p>
           <div id="locationEditorList" style="display:flex; flex-direction:column; gap:12px; margin-bottom:12px;"></div>
-          <button class="btn secondary full sm" onclick="addNewLocationRow()">
+          <button type="button" class="btn secondary full sm" onclick="addNewLocationRow()">
             <i data-lucide="map-pin-plus" class="icon-xs"></i> Add Location & Rules
           </button>
         </div>
-      </div>
 
       <div class="modal-footer" style="flex-wrap: wrap; gap: 6px;">
         <button class="btn danger sm hidden" id="btnDeleteChar" onclick="deleteCharacter()">Delete</button>
