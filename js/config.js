@@ -156,10 +156,11 @@ window.addEventListener('DOMContentLoaded', async () => {
   });
 
   document.getElementById('messageInput')?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
+  const isMobileOrTouch = window.innerWidth <= 900 || ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+  if (e.key === 'Enter' && !e.shiftKey && !isMobileOrTouch) {
+    e.preventDefault();
+    sendMessage();
+  }
   });
 
   document.getElementById('directionInput')?.addEventListener('keydown', (e) => {
