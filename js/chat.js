@@ -204,7 +204,10 @@ function updateRightSidebarCounts() {
 }
 
 function openPhotoAlbumModal() {
-  const container = document.getElementById('albumGridContainer');
+  const modalId = document.getElementById('photoAlbumModal') ? 'photoAlbumModal' : 'albumModal';
+  const container = document.getElementById('albumGridContainer') || document.getElementById('photoAlbumGrid');
+  if (!container) return showToast('ไม่พบกล่องแสดงผลอัลบั้มรูป');
+
   const photoMsgs = currentMessages.filter(m => m.image_url);
 
   if (photoMsgs.length === 0) {
@@ -219,7 +222,7 @@ function openPhotoAlbumModal() {
       </div>
     `).join('');
   }
-  openModal('albumModal');
+  openModal(modalId);
 }
 
 async function deletePhotoFromAlbum(msgId, imageUrl) {
@@ -391,13 +394,24 @@ function renderMessages(isTyping = false, autoScroll = true) {
 
             const isPureNarration = /^\*[^*]+\*$/.test(sm.content.trim());
             if (isPureNarration) {
-              return dividerHtml + `<div class="hybrid-narration-line">${escapeHtml(sm.content.replace(/^\*|\*$/g, ''))}</div>`;
+              return dividerHtml + `
+                <div class="hybrid-narration-line" style="display:flex; justify-content:center; align-items:center; gap:6px;">
+                  <span>${escapeHtml(sm.content.replace(/^\*|\*$/g, ''))}</span>
+                  <button class="msg-action-btn" onclick="deleteSinglePhoneMessage('${sm.id}')" title="ลบข้อความนี้">
+                    <i data-lucide="x" style="width:11px; height:11px;"></i>
+                  </button>
+                </div>`;
             }
             const isPureSticker = /^\[(USER_)?STICKER:[^\]]+\]$/i.test(sm.content.trim());
             const isVoice = sm.session_type === 'phone_call';
             return dividerHtml + `
               <div class="sms-row ${sm.role}">
-                <div style="font-size:10px; color:var(--text-muted); margin-bottom:2px;">${escapeHtml(sName)} ${isVoice ? '(On Call)' : ''}</div>
+                <div style="font-size:10px; color:var(--text-muted); margin-bottom:2px; display:flex; align-items:center; gap:6px;">
+                  <span>${escapeHtml(sName)} ${isVoice ? '(On Call)' : ''}</span>
+                  <button class="msg-action-btn" onclick="deleteSinglePhoneMessage('${sm.id}')" title="ลบข้อความนี้">
+                    <i data-lucide="trash-2" style="width:10px; height:10px;"></i>
+                  </button>
+                </div>
                 <div class="sms-bubble ${isVoice ? 'voice-call-bubble' : ''}" ${isPureSticker ? 'style="background:transparent; border:none; padding:0;"' : ''}>
                   ${sm.image_url ? `<img src="${sm.image_url}" class="msg-image" onclick="openLightbox('${sm.image_url}')" />` : ''}
                   ${formatRichContent(sm.content, sName)}
@@ -1195,6 +1209,16 @@ async function deleteMessage(msgId) {
   currentMessages = currentMessages.slice(0, targetIdx);
   renderMessages(false, false);
   showToast(`ลบถาวรเรียบร้อย (${count} ข้อความ)`);
+}
+
+async function deleteSinglePhoneMessage(msgId) {
+  if (!(await appConfirm('ลบข้อความมือถือนี้ใช่ไหม?', 'Delete Phone Message'))) return;
+  const { error } = await supabaseClient.from('messages').delete().eq('id', msgId);
+  if (error) return showToast('ลบไม่สำเร็จ: ' + error.message);
+
+  currentMessages = currentMessages.filter(m => m.id !== msgId);
+  renderMessages(false, false);
+  showToast('ลบข้อความมือถือแล้ว');
 }
 
 async function saveMemory() {
