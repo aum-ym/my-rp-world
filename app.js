@@ -654,68 +654,16 @@ function removeLocationRow(idx) {
   renderLocationEditorList();
 }
 
-function openCharModal(isEdit = false) {
-  switchCharTab('core', document.querySelector('.tab-btn'));
-
-  if (isEdit && currentChar) {
-    document.getElementById('charModalTitle').textContent = `Configure — ${currentChar.name}`;
-    document.getElementById('editCharId').value = currentChar.id;
-    document.getElementById('charName').value = currentChar.name;
-    document.getElementById('charAvatar').value = currentChar.avatar_url || '';
-    document.getElementById('charAvatarPreview').src = currentChar.avatar_url || 'https://via.placeholder.com/56/1f1f24/71717a?text=' + encodeURIComponent(currentChar.name[0]);
-
-    document.getElementById('charBasicInfo').value = currentChar.basic_info || '';
-    document.getElementById('charAppearanceStyle').value = currentChar.appearance_style || '';
-    document.getElementById('charPersonalityTrauma').value = currentChar.personality_trauma || currentChar.personality || '';
-    document.getElementById('charSpeechDynamics').value = currentChar.speech_dynamics || '';
-    document.getElementById('charAssetsItems').value = currentChar.assets_items || '';
-
-    document.getElementById('charWorldSetting').value = currentChar.world_setting || currentChar.important_dates || '';
-    document.getElementById('charUserRelationship').value = currentChar.user_relationship || '';
-    document.getElementById('charScenario').value = currentChar.scenario || '';
-    document.getElementById('charFirstMsg').value = currentChar.first_message || '';
-
-    document.getElementById('charSystemPrompt').value = currentChar.system_prompt || '';
-    document.getElementById('charExampleDialogue').value = currentChar.example_dialogue || '';
-    document.getElementById('charJailbreak').value = currentChar.jailbreak || '';
-    document.getElementById('charHtmlBio').value = currentChar.html_bio || '';
-    document.getElementById('charPhonePasscode').value = currentChar.phone_passcode || '';
-    document.getElementById('charStartingBalance').value = currentChar.starting_balance || '$5,000.00';
-    document.getElementById('charPhoneHint').value = currentChar.phone_hint || '';
-
-    tempNpcList = Array.isArray(currentChar.supporting_chars) ? JSON.parse(JSON.stringify(currentChar.supporting_chars)) : [];
-    tempLocationList = Array.isArray(currentChar.locations) ? JSON.parse(JSON.stringify(currentChar.locations)) : [];
-    document.getElementById('btnDeleteChar').classList.remove('hidden');
-  } else {
-    document.getElementById('charModalTitle').textContent = 'Create New Character';
-    document.getElementById('editCharId').value = '';
-    [
-      'charName', 'charAvatar', 'charBasicInfo', 'charAppearanceStyle',
-      'charPersonalityTrauma', 'charSpeechDynamics', 'charAssetsItems',
-      'charWorldSetting', 'charUserRelationship', 'charScenario', 'charFirstMsg',
-      'charSystemPrompt', 'charExampleDialogue', 'charJailbreak', 'charHtmlBio',
-      'charPhonePasscode', 'charPhoneHint'
-    ].forEach(id => {
-      document.getElementById(id).value = '';
-    });
-    document.getElementById('charAvatarPreview').src = 'https://via.placeholder.com/56/1f1f24/71717a?text=C';
-    document.getElementById('charStartingBalance').value = '$5,000.00';
-    tempNpcList = [];
-    tempLocationList = [];
-    document.getElementById('btnDeleteChar').classList.add('hidden');
-  }
-  renderNpcEditorList();
-  renderLocationEditorList();
-  openModal('charModal');
+function getCharDraftStorageKey(charId = '') {
+  return `nexusrp_char_draft_${charId || 'new'}`;
 }
 
-async function saveCharacter() {
-  const id = document.getElementById('editCharId').value;
+function collectCharacterFormPayload() {
   const rawPasscode = document.getElementById('charPhonePasscode').value.replace(/[^0-9]/g, '').slice(0, 4);
   syncNpcsFromInputs();
   syncLocationsFromInputs();
 
-  const payload = {
+  return {
     user_id: currentUser.id,
     name: document.getElementById('charName').value.trim(),
     avatar_url: document.getElementById('charAvatar').value.trim(),
@@ -738,6 +686,88 @@ async function saveCharacter() {
     supporting_chars: tempNpcList,
     locations: tempLocationList
   };
+}
+
+function populateCharacterFormFromData(dataObj) {
+  document.getElementById('charName').value = dataObj.name || '';
+  document.getElementById('charAvatar').value = dataObj.avatar_url || '';
+  document.getElementById('charAvatarPreview').src = dataObj.avatar_url || 'https://via.placeholder.com/56/1f1f24/71717a?text=' + encodeURIComponent((dataObj.name || 'C')[0]);
+
+  document.getElementById('charBasicInfo').value = dataObj.basic_info || '';
+  document.getElementById('charAppearanceStyle').value = dataObj.appearance_style || '';
+  document.getElementById('charPersonalityTrauma').value = dataObj.personality_trauma || dataObj.personality || '';
+  document.getElementById('charSpeechDynamics').value = dataObj.speech_dynamics || '';
+  document.getElementById('charAssetsItems').value = dataObj.assets_items || '';
+
+  document.getElementById('charWorldSetting').value = dataObj.world_setting || dataObj.important_dates || '';
+  document.getElementById('charUserRelationship').value = dataObj.user_relationship || '';
+  document.getElementById('charScenario').value = dataObj.scenario || '';
+  document.getElementById('charFirstMsg').value = dataObj.first_message || '';
+
+  document.getElementById('charSystemPrompt').value = dataObj.system_prompt || '';
+  document.getElementById('charExampleDialogue').value = dataObj.example_dialogue || '';
+  document.getElementById('charJailbreak').value = dataObj.jailbreak || '';
+  document.getElementById('charHtmlBio').value = dataObj.html_bio || '';
+  document.getElementById('charPhonePasscode').value = dataObj.phone_passcode || '';
+  document.getElementById('charStartingBalance').value = dataObj.starting_balance || '$5,000.00';
+  document.getElementById('charPhoneHint').value = dataObj.phone_hint || '';
+
+  tempNpcList = Array.isArray(dataObj.supporting_chars) ? JSON.parse(JSON.stringify(dataObj.supporting_chars)) : [];
+  tempLocationList = Array.isArray(dataObj.locations) ? JSON.parse(JSON.stringify(dataObj.locations)) : [];
+  renderNpcEditorList();
+  renderLocationEditorList();
+}
+
+function saveCharDraftToLocal() {
+  const modal = document.getElementById('charModal');
+  if (!modal || modal.classList.contains('hidden')) return;
+  const id = document.getElementById('editCharId').value || '';
+  const draftData = collectCharacterFormPayload();
+  localStorage.setItem(getCharDraftStorageKey(id), JSON.stringify(draftData));
+}
+
+function openCharModal(isEdit = false) {
+  switchCharTab('core', document.querySelector('.tab-btn'));
+
+  if (isEdit && currentChar) {
+    document.getElementById('charModalTitle').textContent = `Configure — ${currentChar.name}`;
+    document.getElementById('editCharId').value = currentChar.id;
+    document.getElementById('btnDeleteChar').classList.remove('hidden');
+
+    const savedDraft = localStorage.getItem(getCharDraftStorageKey(currentChar.id));
+    if (savedDraft) {
+      try {
+        populateCharacterFormFromData(JSON.parse(savedDraft));
+        showToast('กู้คืนร่างข้อมูลที่ยังไม่ได้บันทึกจากเครื่องให้แล้ว');
+      } catch {
+        populateCharacterFormFromData(currentChar);
+      }
+    } else {
+      populateCharacterFormFromData(currentChar);
+    }
+  } else {
+    document.getElementById('charModalTitle').textContent = 'Create New Character';
+    document.getElementById('editCharId').value = '';
+    document.getElementById('btnDeleteChar').classList.add('hidden');
+
+    const savedNewDraft = localStorage.getItem(getCharDraftStorageKey(''));
+    if (savedNewDraft) {
+      try {
+        populateCharacterFormFromData(JSON.parse(savedNewDraft));
+        showToast('กู้คืนร่างตัวละครใหม่ที่พิมพ์ค้างไว้ให้แล้ว');
+      } catch {
+        populateCharacterFormFromData({});
+      }
+    } else {
+      populateCharacterFormFromData({});
+    }
+  }
+  openModal('charModal');
+}
+
+async function saveCharacter() {
+  const id = document.getElementById('editCharId').value;
+  const payload = collectCharacterFormPayload();
 
   if (!payload.name || !payload.first_message) {
     return showToast('ต้องกรอก Character Name (แท็บ 1) และ First Message (แท็บ 2) ก่อนนะ');
@@ -747,14 +777,16 @@ async function saveCharacter() {
     const { data, error } = await supabaseClient.from('characters').update(payload).eq('id', id).select().single();
     if (error) return showToast(error.message);
     currentChar = data;
+    localStorage.removeItem(getCharDraftStorageKey(id));
   } else {
     const { data, error } = await supabaseClient.from('characters').insert(payload).select().single();
     if (error) return showToast(error.message);
     currentChar = data;
+    localStorage.removeItem(getCharDraftStorageKey(''));
   }
 
   closeModal('charModal');
-  showToast('บันทึกข้อมูลตัวละคร โลก และ Lorebook เรียบร้อย');
+  showToast('บันทึกข้อมูลลง Supabase และล้างร่างชั่วคราวเรียบร้อย');
   await loadCharacters();
   await loadAllRecentChats();
   startOrResumeCharacter(currentChar.id);
@@ -3597,4 +3629,106 @@ function sanitizeHtml(html) {
     });
   });
   return temp.innerHTML;
+}
+
+// ==========================================
+// DRAFT AUTO-SAVE, SINGLE CHAR BACKUP & XML PREVIEW
+// ==========================================
+window.addEventListener('DOMContentLoaded', () => {
+  const charModalEl = document.getElementById('charModal');
+  if (charModalEl) {
+    charModalEl.addEventListener('input', () => saveCharDraftToLocal());
+    charModalEl.addEventListener('change', () => saveCharDraftToLocal());
+  }
+});
+
+function exportSingleCharacterJson() {
+  const data = collectCharacterFormPayload();
+  const charName = data.name || (currentChar ? currentChar.name : 'character');
+  const exportPayload = {
+    schema: 'NexusRP_Character_v2',
+    exported_at: new Date().toISOString(),
+    character: data
+  };
+  downloadTextFile(`${charName}_profile.json`, JSON.stringify(exportPayload, null, 2), 'application/json');
+  showToast(`สำรองข้อมูล "${charName}" (.json) เรียบร้อย`);
+}
+
+function importCharacterJsonToForm(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      const charData = parsed.character || parsed;
+      populateCharacterFormFromData(charData);
+      saveCharDraftToLocal();
+      showToast(`นำเข้าข้อมูล "${charData.name || 'Character'}" ลงฟอร์มแล้ว (อย่าลืมกด Save Character)`);
+    } catch (err) {
+      showToast('ไฟล์ JSON ไม่ถูกต้อง: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function previewCompiledCharacterXml() {
+  const c = collectCharacterFormPayload();
+  const activePersona = getActivePersona();
+  const charName = c.name || '{{char}}';
+
+  const characterProfileXml = `<character_profile>
+Name: ${charName}
+Financial Status / Starting Balance: ${c.starting_balance || '$5,000.00'}
+
+### Basic Information
+${c.basic_info || 'Not specified.'}
+
+### Physical Appearance & Style
+${c.appearance_style || 'Not specified.'}
+
+### Personality, Trauma & Triggers (STRICTLY INTERNALIZED — DO NOT REVEAL SECRETS UNLESS TRIGGERED)
+${c.personality_trauma || 'Not specified.'}
+
+### Speech & Dynamics
+${c.speech_dynamics || 'Not specified.'}
+
+### Assets & Everyday Carry (EDC)
+${c.assets_items || 'Not specified.'}${c.example_dialogue ? `\n\n### Example Dialogue\n${c.example_dialogue}` : ''}
+</character_profile>`;
+
+  const worldContextXml = `<world_context>
+### Setting & Cultural Context
+${c.world_setting || 'Not specified.'}
+
+### Initial Relationship with ${activePersona.name}
+${c.user_relationship || 'Not specified.'}
+
+### Current Opening Scenario
+${c.scenario || 'Not specified.'}
+
+### Roleplay Partner (${activePersona.name})
+${activePersona.description || 'Not specified.'}
+</world_context>`;
+
+  const locsXml = c.locations.length > 0
+    ? `\n<active_locations_pool count="${c.locations.length}">\n${c.locations.map(l => `### ${l.name} [${l.always_active ? 'ALWAYS ACTIVE' : `Keywords: ${l.keywords || 'Any'}`}]\n- Vibe: ${l.details || 'Standard'}\n- STRICT RULES: ${l.rules || 'None'}`).join('\n\n')}\n</active_locations_pool>`
+    : '';
+
+  const loreXml = c.supporting_chars.length > 0
+    ? `\n<relevant_lore_pool count="${c.supporting_chars.length}">\n${c.supporting_chars.map(n => `### ${n.name} (${n.role || 'Lore'}) [${n.always_active ? 'ALWAYS ACTIVE' : `Keywords: ${n.keywords || 'Any'}`}]\n${n.content || ''}`).join('\n\n')}\n</relevant_lore_pool>`
+    : '';
+
+  const fullPreview = `${c.system_prompt ? `[Custom System Prompt]\n${c.system_prompt}\n\n` : ''}${characterProfileXml}\n\n${worldContextXml}${locsXml}${loreXml}${c.jailbreak ? `\n\n[Jailbreak / Post-History]\n${c.jailbreak}` : ''}`;
+
+  const approxTokens = Math.ceil(fullPreview.length / 3.5);
+  document.getElementById('xmlPreviewContent').textContent = fullPreview;
+  document.getElementById('xmlTokenEstimate').textContent = `Total: ${fullPreview.length.toLocaleString()} chars (~${approxTokens.toLocaleString()} tokens)`;
+  openModal('xmlPreviewModal');
+}
+
+function copyCompiledXml() {
+  const text = document.getElementById('xmlPreviewContent').textContent;
+  navigator.clipboard.writeText(text).then(() => showToast('คัดลอก Compiled XML ลงคลิปบอร์ดแล้ว'));
 }
