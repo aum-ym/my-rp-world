@@ -569,22 +569,24 @@ function formatRichContent(text, senderName = '') {
   const activePersona = getActivePersona();
   text = text.replace(/\{\{user\}\}/gi, activePersona.name).replace(/\{\{char\}\}/gi, currentChar ? currentChar.name : '');
 
-  let processed = text.replace(/\[(USER_TRANSFER|BOT_TRANSFER):\s*([^|\]]+)\|\s*([^\]]+)\]/gi, (_, type, amt, note) => {
-    const label = type.toUpperCase() === 'USER_TRANSFER' ? `TRANSFER TO ${currentChar ? currentChar.name.toUpperCase() : 'CHARACTER'}` : `TRANSFER FROM ${senderName.toUpperCase()}`;
-    return `\n<div class="transfer-slip-card"><div class="transfer-slip-header">TRANSFER SLIP • ${escapeHtml(label)}</div><div class="transfer-slip-amount">${escapeHtml(amt.trim())}</div><div class="transfer-slip-note">${escapeHtml(note.trim())}</div></div>\n`;
-  });
+  let processed = text.replace(/\[(USER_TRANSFER|BOT_TRANSFER):\s*([^|\]]+)\|\s*([^|\]]+)(?:\|\s*([^\]]+))?\]/gi, (_, type, amt, part2, part3) => {
+    const isUserTransfer = type.toUpperCase() === 'USER_TRANSFER';
+    let recipient = '';
+    let note = '';
 
-  processed = processed.replace(/\[USER_STICKER:\s*([^|\]]+)\|\s*([^\]]+)\]/gi, (_, label) => {
-    const url = resolveStickerUrl(label);
-    return url ? `\n<img src="${url}" alt="${escapeHtml(label.trim())}" class="chat-sticker-img" />\n` : '';
-  });
-
-  processed = processed.replace(/\[STICKER:\s*([^\]]+)\]/gi, (_, label) => {
-    const url = resolveStickerUrl(label);
-    if (url) {
-      return `\n<img src="${url}" alt="${escapeHtml(label.trim())}" class="chat-sticker-img" />\n`;
+    if (part3 !== undefined) {
+      recipient = part2.trim();
+      note = part3.trim();
+    } else {
+      recipient = isUserTransfer ? (currentChar ? currentChar.name : 'Character') : activePersona.name;
+      note = part2.trim();
     }
-    return `<span class="badge">[Sticker: ${escapeHtml(label.trim())}]</span>`;
+
+    const headerText = isUserTransfer
+      ? `TRANSFER TO ${recipient.toUpperCase()}`
+      : `${senderName.toUpperCase()} ➔ ${recipient.toUpperCase()}`;
+
+    return `\n<div class="transfer-slip-card"><div class="transfer-slip-header">TRANSFER SLIP • ${escapeHtml(headerText)}</div><div class="transfer-slip-amount">${escapeHtml(amt.trim())}</div><div class="transfer-slip-note">${escapeHtml(note)}</div></div>\n`;
   });
 
   const parts = processed.split(/(```html[\s\S]*?```)/gi);
@@ -1092,8 +1094,7 @@ ${currentChat.memory_notes || 'None.'}
 - Stay strictly in character as ${currentChar.name}. Never speak or act on behalf of ${activePersona.name}.
 - Use *asterisks* for actions/thoughts and standard text or "quotes" for spoken dialogue.
 - [Emojis & Stickers]: You may use natural emojis in casual messages or phone texts, and send chat stickers using [STICKER: name] (Available: ${allStickerNames}).
-- [Money Transfer]: If ${activePersona.name} transfers money to you ([USER_TRANSFER: amount | note]), react naturally! If the story makes sense for YOU (${currentChar.name}) to transfer money to ${activePersona.name}, include [BOT_TRANSFER: amount | reason] on its own line (use currency "${userCurrency}" if appropriate).${rubiiInstruction}
-${activeStyle && activeStyle.prompt ? '- ' + activeStyle.prompt : ''}
+- [Money Transfer]: If ${activePersona.name} transfers money to you ([USER_TRANSFER: amount | recipient | note]), react naturally! If the story makes sense for YOU (${currentChar.name}) to transfer money to ${activePersona.name} OR another character, include [BOT_TRANSFER: amount | recipient_name | reason] on its own line (use currency "${userCurrency}" if appropriate).${rubiiInstruction}${activeStyle && activeStyle.prompt ? '- ' + activeStyle.prompt : ''}
 </roleplay_rules>`;
 
   const apiMessages = [{ role: 'system', content: systemPrompt }];

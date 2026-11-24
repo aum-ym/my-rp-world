@@ -225,7 +225,22 @@ function openUserPhoneApp(appName) {
       screen.innerHTML = `<div style="display:flex; flex-direction:column;">${bubbles}</div>`;
     }
   } else if (appName === 'wallet') {
-    title.textContent = 'Wallet & Currency';
+    title.textContent = 'Wallet & History';
+    const history = getUserWalletHistory();
+    const historyHtml = history.length > 0
+      ? history.map(tx => `
+          <div class="phone-list-item" style="cursor:default; display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <div style="overflow:hidden; padding-right:8px;">
+              <div style="font-size:12.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(tx.title)}</div>
+              <div style="font-size:10.5px; color:var(--text-muted);">${escapeHtml(tx.note || '')} • ${escapeHtml(tx.time || '')}</div>
+            </div>
+            <div style="font-weight:700; font-size:12.5px; white-space:nowrap; color:${tx.type === 'in' ? '#34d399' : '#f43f5e'};">
+              ${tx.type === 'in' ? '+' : '-'}${escapeHtml(tx.amount)}
+            </div>
+          </div>
+        `).join('')
+      : '<div class="hint" style="text-align:center; padding:12px 0;">ยังไม่มีประวัติการโอนเข้า-ออก</div>';
+
     screen.innerHTML = `
       <div class="bank-card">
         <div style="font-size:10px; color:var(--text-muted); letter-spacing:0.06em;">AVAILABLE BALANCE</div>
@@ -247,9 +262,15 @@ function openUserPhoneApp(appName) {
         <label>ข้อความแนบสลิป (Note)</label>
         <input type="text" id="transferNoteInput" placeholder="เช่น ค่าขนม, จ่ายค่าเสียหาย..." />
       </div>
-      <button class="btn primary full" onclick="sendTransferToBot()">
+      <button class="btn primary full" style="margin-bottom:16px;" onclick="sendTransferToBot()">
         <i data-lucide="arrow-up-right" class="icon-xs"></i> โอนเงินเข้าแชททันที
       </button>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <div class="section-label" style="margin:0;">TRANSACTION HISTORY</div>
+        ${history.length > 0 ? `<button class="msg-action-btn" style="font-size:10.5px;" onclick="clearUserWalletHistory()">Clear</button>` : ''}
+      </div>
+      ${historyHtml}
     `;
   } else if (appName === 'stickers') {
     title.textContent = 'Stickers (Tag System)';
@@ -299,6 +320,37 @@ function updateUserWalletSettings() {
   openUserPhoneApp('wallet');
 }
 
+function getUserWalletHistoryKey() {
+  return `user_wallet_tx_${currentChat ? currentChat.id : 'global'}`;
+}
+
+function getUserWalletHistory() {
+  try {
+    return JSON.parse(localStorage.getItem(getUserWalletHistoryKey()) || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function addUserWalletTransaction(type, title, amount, note) {
+  const list = getUserWalletHistory();
+  list.unshift({
+    type, // 'in' หรือ 'out'
+    title,
+    amount,
+    note,
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  });
+  if (list.length > 40) list.pop();
+  localStorage.setItem(getUserWalletHistoryKey(), JSON.stringify(list));
+}
+
+function clearUserWalletHistory() {
+  localStorage.removeItem(getUserWalletHistoryKey());
+  openUserPhoneApp('wallet');
+  showToast('ล้างประวัติการเงินแล้ว');
+}
+
 async function sendTransferToBot() {
   const numVal = parseFloat(document.getElementById('transferAmountInput').value);
   const noteStr = document.getElementById('transferNoteInput').value.trim() || 'Transfer';
@@ -310,8 +362,10 @@ async function sendTransferToBot() {
   }
 
   const formattedAmt = `${userCurrency}${numVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  addUserWalletTransaction('out', `To ${currentChar.name}`, formattedAmt, noteStr);
+
   closeModal('userPhoneModal');
-  await sendRawUserAction(`[USER_TRANSFER: ${formattedAmt} | ${noteStr}]`);
+  await sendRawUserAction(`[USER_TRANSFER: ${formattedAmt} | ${currentChar.name} | ${noteStr}]`);
 }
 
 async function uploadNewSticker(event) {
@@ -411,13 +465,37 @@ async function sendRawUserAction(specialContent) {
 }
 
 function processBotTransferToUser(botText) {
-  const match = botText.match(/\[BOT_TRANSFER:\s*([^|\]]+)\|\s*([^\]]+)\]/i);
-  if (match) {
-    const numVal = parseFloat(match[1].replace(/[^0-9.]/g, ''));
-    if (!isNaN(numVal)) {
-      userWalletBalance += numVal;
-      localStorage.setItem('user_wallet_balance', String(userWalletBalance));
-      showToast(`ได้รับเงินโอน ${match[1].trim()} เข้ากระเป๋าแล้ว!`);
+  const regex = /\[BOT_TRANSFER:\s*([^|\]]+)\|\s*([^|\]]+)(?:\|\s*([^\]]+))?\]/gi;
+  const activePersonaName = getActivePersona().name.toLowerCase();
+  let match;
+
+  while ((match = regex.exec(botText)) !== null) {
+    const rawAmt = match[1].trim();
+    const part2 = match[2].trim();
+    const part3 = match[3] ? match[3].trim() : null;
+
+    // ถ้าระบุ 3 ส่วน part2 คือชื่อผู้รับ, ถ้าระบุ 2 ส่วนแบบเก่าถือว่าโอนให้ User
+    const recipient = part3 !== null ? part2 : activePersonaName;
+    const note = part3 !== null ? part3 : part2;
+    const recLower = recipient.toLowerCase();
+
+    const isForUser =
+      recLower === activePersonaName ||
+      recLower.includes(activePersonaName) ||
+      activePersonaName.includes(recLower) ||
+      recLower === 'user' ||
+      recLower === 'you' ||
+      recLower === 'me' ||
+      recLower === '{{user}}';
+
+    if (isForUser) {
+      const numVal = parseFloat(rawAmt.replace(/[^0-9.]/g, ''));
+      if (!isNaN(numVal)) {
+        userWalletBalance += numVal;
+        localStorage.setItem('user_wallet_balance', String(userWalletBalance));
+        addUserWalletTransaction('in', `From ${currentChar.name}`, rawAmt, note);
+        showToast(`ได้รับเงินโอน ${rawAmt} เข้ากระเป๋าแล้ว!`);
+      }
     }
   }
 }
