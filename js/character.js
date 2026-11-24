@@ -175,13 +175,24 @@ function renderLocationEditorList() {
 }
 
 function syncLocationsFromInputs() {
-  tempLocationList = tempLocationList.map((loc, idx) => ({
-    name: document.getElementById(`locName_${idx}`)?.value.trim() || '',
-    keywords: document.getElementById(`locKeywords_${idx}`)?.value.trim() || '',
-    always_active: document.getElementById(`locAlways_${idx}`)?.checked || false,
-    details: document.getElementById(`locDetails_${idx}`)?.value.trim() || '',
-    rules: document.getElementById(`locRules_${idx}`)?.value.trim() || ''
-  })).filter(l => l.name);
+  const container = document.getElementById('locationEditorList');
+  if (!container) return;
+  const cards = container.children;
+  const updated = [];
+  for (let i = 0; i < cards.length; i++) {
+    const nameEl = document.getElementById(`locName_${i}`);
+    if (!nameEl) continue;
+    const name = nameEl.value.trim();
+    if (!name) continue;
+    updated.push({
+      name,
+      keywords: document.getElementById(`locKeywords_${i}`)?.value.trim() || '',
+      always_active: document.getElementById(`locAlways_${i}`)?.checked || false,
+      details: document.getElementById(`locDetails_${i}`)?.value.trim() || '',
+      rules: document.getElementById(`locRules_${i}`)?.value.trim() || ''
+    });
+  }
+  tempLocationList = updated;
 }
 
 function addNewLocationRow() {
