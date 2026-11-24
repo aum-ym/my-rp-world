@@ -1100,7 +1100,7 @@ ${activeStyle && activeStyle.prompt ? '- ' + activeStyle.prompt : ''}
     apiMessages.push({ role: 'system', content: extraSystemRule });
   }
 
-  const response = await fetch('[https://api.deepseek.com/chat/completions](https://api.deepseek.com/chat/completions)', {
+  const response = await fetch('https://api.deepseek.com/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -1236,7 +1236,7 @@ ${recentMsgs}
 - Output ONLY concise bullet points (max 150-200 words). No intro or outro text.
 - Write in the primary language used in the roleplay.`;
 
-    const response = await fetch('[https://api.deepseek.com/chat/completions](https://api.deepseek.com/chat/completions)', {
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${deepseekApiKey}` },
       body: JSON.stringify({ model: 'deepseek-flash', messages: [{ role: 'user', content: prompt }], temperature: 0.5 })
