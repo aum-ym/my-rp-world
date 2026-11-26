@@ -117,13 +117,24 @@ function renderNpcEditorList() {
 }
 
 function syncNpcsFromInputs() {
-  tempNpcList = tempNpcList.map((npc, idx) => ({
-    name: document.getElementById(`npcName_${idx}`)?.value.trim() || '',
-    role: document.getElementById(`npcRole_${idx}`)?.value.trim() || '',
-    keywords: document.getElementById(`npcKeywords_${idx}`)?.value.trim() || '',
-    always_active: document.getElementById(`npcAlways_${idx}`)?.checked || false,
-    content: document.getElementById(`npcContent_${idx}`)?.value.trim() || ''
-  })).filter(n => n.name);
+  const container = document.getElementById('npcEditorList');
+  if (!container) return;
+  const cards = container.children;
+  const updated = [];
+  for (let i = 0; i < cards.length; i++) {
+    const nameEl = document.getElementById(`npcName_${i}`);
+    if (!nameEl) continue;
+    const name = nameEl.value.trim();
+    if (!name) continue;
+    updated.push({
+      name,
+      role: document.getElementById(`npcRole_${i}`)?.value.trim() || '',
+      keywords: document.getElementById(`npcKeywords_${i}`)?.value.trim() || '',
+      always_active: document.getElementById(`npcAlways_${i}`)?.checked || false,
+      content: document.getElementById(`npcContent_${i}`)?.value.trim() || ''
+    });
+  }
+  tempNpcList = updated;
 }
 
 function addNewNpcRow() {
